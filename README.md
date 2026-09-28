@@ -1,7 +1,7 @@
 # <project name>
 
 **Group:** Sophie, Sven, Ronja, Martina
-**Track:** simulation (`tissue-sim`) / analysis (`spatial-decode`) — delete one
+**Track:** simulation (`tissue-sim`)
 
 > Replace everything in angle brackets. This README is graded, and the criterion is simple:
 > can someone who has never met you clone this repository and reproduce a result?
