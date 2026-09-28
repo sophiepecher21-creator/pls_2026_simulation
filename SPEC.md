@@ -2,8 +2,8 @@
 
 ## What it does
 
-<What does the program do >
-  
+`tissue-sim` simulates a 2D tissue of cells that are organized in spatial domains and express genes stochastically depending on their cell type. The program then mimics a Visium HD experiment by assigning the generated transcripts to a grid of 2 µm squares. In addition to the simulation, the program provides ground truth about the underlying tissue and independent reference data, so that spatial transcriptomics analysis methods can be tested and evaluated.
+
 ## Inputs
 
 <What it reads. Refer to the Data Contract rather than inventing a format.>
