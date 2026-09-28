@@ -19,3 +19,13 @@
 - **Decision:** Edited and commented the Pull request of Sophie. Submitted a pull request for the "What it does" section for the SPEC.md document.
 
 ---
+
+## <date> — <what you were building>
+
+- **Prompt / ask:** <what you asked, or "wrote by hand">
+- **What it produced:** <a line or two>
+- **How you checked it:** <the specific check you ran — not "I read it">
+- **What was wrong:** <bugs, hallucinations, or "nothing found">
+- **Decision:** <accepted / edited / rejected — and why>
+
+---
