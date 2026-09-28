@@ -1,6 +1,6 @@
 # <project name>
 
-**Group:** <names of all of you>
+**Group:** Sophie, Sven, Ronja, Martina
 **Track:** simulation (`tissue-sim`) / analysis (`spatial-decode`) — delete one
 
 > Replace everything in angle brackets. This README is graded, and the criterion is simple:
