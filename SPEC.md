@@ -10,7 +10,19 @@
 
 ## Outputs
 
-<What it writes. Again, per the Data Contract.>
+Directory layout produced by the simulator:
+
+<dataset_name>/ 
+├── metadata.json    # Experiment specifications
+├── coordinates.csv   # Position of each square on the grid
+├── counts.csv    # Number of transcripts detected for each gene in each spatial square (squares x genes)
+├── reference/   # Reference for scRNA-seq
+│  ├── reference_counts.csv    # Counts for the simulated reference cells
+│  └── reference_labels.csv   # True cell type for each reference cell
+└── ground_truth/   # "Answer key" - analyzes must NOT read this
+   ├── params.json   # Parameters used to generate the simulation
+   ├── composition.csv   # Transcript counts per square and cell type
+   └── domains.csv   # True spatial domain label for each square
 
 ## Acceptance criteria
 
