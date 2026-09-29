@@ -12,6 +12,7 @@
 
 Directory layout produced by the simulator:
 
+```text
 <dataset_name>/ 
 ├── metadata.json    # Experiment specifications
 ├── coordinates.csv   # Position of each square on the grid
@@ -23,6 +24,7 @@ Directory layout produced by the simulator:
    ├── params.json   # Parameters used to generate the simulation
    ├── composition.csv   # Transcript counts per square and cell type
    └── domains.csv   # True spatial domain label for each square
+```
 
 ## Acceptance criteria
 
