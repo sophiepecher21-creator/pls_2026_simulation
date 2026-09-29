@@ -12,7 +12,7 @@
 
 Directory layout produced by the simulator:
 
-output/ 
+<dataset_name>/ 
 ├── metadata.json    # Experiment specifications
 ├── coordinates.csv   # Position of each square on the grid
 ├── counts.csv    # Number of transcripts detected for each gene in each spatial square (squares x genes)
