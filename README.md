@@ -1,4 +1,4 @@
-# Group Simulation README
+# Programming for Life Sciences 2026, Simulation Path
 
 **Group:** Sophie, Sven, Ronja, Martina
 **Track:** simulation (`tissue-sim`)
