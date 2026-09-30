@@ -1,4 +1,4 @@
-# <project name>
+# Group Simulation README
 
 **Group:** Sophie, Sven, Ronja, Martina
 **Track:** simulation (`tissue-sim`)
