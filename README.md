@@ -11,7 +11,11 @@
 
 ## What this does
 
-<One paragraph, in your own words. What problem does this program solve, and for whom?>
+tissue-sim simulates a two-dimensional tissue for testing spatial
+transcriptomics analysis methods. The current Week 3 implementation places
+cells in two vertical domains, assigns one cell type to each domain, and
+writes a cell table and a provenance record. Transcript generation, grid
+assignment, and the full Data Contract outputs are planned.
 
 ## Install
 
@@ -28,7 +32,10 @@ course document *Running a project from GitHub*.
 ## Run
 
 ```bash
-<the one command that produces a result>
+python -m tissue_sim.simulation \
+  --config config/default.yaml \
+  --data-dir data/raw \
+  --out-dir results
 ```
 
 ## Repository layout
@@ -45,8 +52,27 @@ ai_log/     your AI + verification log — one file per person, named for you
 
 The reference dataset is **not** in this repository. Refer to it by path; never commit data.
 
-<From Week 3: say where the data comes from and where the program expects it — a URL, a DOI, or
-"produced by group X's simulator". Someone who has only this repository has to be able to get it.>
+The course-provided reference_dataset directory must be obtained separately
+and copied to data/raw/reference_dataset/. It is not committed to Git.
+Exclude .DS_Store and .ipynb_checkpoints when copying it, then make data/raw/
+read-only with chmod -R a-w data/raw.
+
+The committed data/raw_manifest.sha256 records the supplied files'
+fingerprints. Every run verifies data/raw/ against this manifest before
+creating output. The Week 3 toy verifies these supplied files but does not
+use their contents to generate cells.
+
+Supplied ground truth remains under
+data/raw/reference_dataset/dataset/ground_truth/. It is given data that
+this project cannot regenerate. Ground truth produced by our own simulator
+will instead be generated output.
+
+The program writes toy_cells.csv and run_metadata.json to results/.
+Cleaning steps belong in data/interim/. Raw data, intermediate data, and
+results are excluded from Git; source code, configuration, tests,
+documentation, and the checksum manifest are committed.
+
+Tests use temporary inputs and do not require the reference dataset.
 
 ## Checks
 
