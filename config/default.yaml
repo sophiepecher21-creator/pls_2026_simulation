@@ -5,3 +5,11 @@
 # Nothing in src/ should contain a number a reviewer could ask "why that value?" about.
 
 seed: 20260101          # fixes every random draw; recorded in run_metadata.json
+
+# Week 3 toy tissue
+n_cells: 20
+field_width_um: 320.0
+field_height_um: 320.0
+cell_types:
+  - type_a
+  - type_b
