@@ -7,13 +7,13 @@
 ## Inputs
 
 seed : Predefined randomness seeding 
-Field size µm, bin size in µm: 0-N gid size; 0-N bin size 
+Field size µm: 0-N gid size
 N: Number of Cells
 Celltypes: 0-N celltypes 
 Genes: 0-N Genes defined for each cell type
 Marker genes: Defined marker gene for a cell type, can be multiple
 Marker gene bost: Makes expression of marker genes stronger/weaker
-transcript per cell: How many mRNA each cell emits/contains
+
 
 ## Outputs
 
