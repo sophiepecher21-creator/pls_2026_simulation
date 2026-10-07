@@ -1,5 +1,3 @@
----
-
 ## <date> — <what you were building>
 
 - **Prompt / ask:** <what you asked, or "wrote by hand">
