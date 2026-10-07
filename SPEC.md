@@ -6,6 +6,14 @@
 
 ## Inputs
 
+seed : Predefined randomness seeding 
+Field size µm: 0-N gid size
+N: Number of Cells
+Celltypes: 0-N celltypes 
+Genes: 0-N Genes defined for each cell type
+Marker genes: Defined marker gene for a cell type, can be multiple
+Marker gene bost: Makes expression of marker genes stronger/weaker
+
 The Week 3 toy reads config/default.yaml for its seed, cell count, field
 dimensions, and two cell-type names. Before generating output, it verifies
 all files under data/raw/ against data/raw_manifest.sha256. The supplied
