@@ -10,6 +10,13 @@
 - What it produced: Explained that the notebook uses a temporary project that is not installed, so it temporarily adds src/ to PYTHONPATH to allow from spatial_decode.cleaning import clean. In the real project, we just use pip install -e .
 - Decision: Accepted — PYTHONPATH is only a temporary workaround for the notebook.
 
+## 14-07-2026 — read_globals()
+- Prompt / question: Correct my implementation for read_globals()
+- What it produced: corrected implementation with line ```value = func.__globals__[name]```
+- How I checked it: I ran the code but there was an error
+- What was wrong: ```func.__globals__[name]``` has no items
+- Decision: rejected because ```__globals__``` is not a dict
+
 ## <date> — <what I was building>
 - Prompt / question: <what I asked the AI or wrote myself>
 - What it produced: <a line or two>
