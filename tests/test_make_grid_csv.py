@@ -1,13 +1,39 @@
 import csv
-
 import pytest
 
-from tissue_sim.grid_write_coordinates import write_coordinates
-from tissue_sim.make_grid_csv import make_grid_csv, read_config
+from tissue_sim.make_grid_csv import (GridConfig,main,make_grid,read_config,write_coordinates)
 
+
+def test_make_grid_known_answer():
+	''' A 4x4 µm grid matches four squares from the reference csv '''
+	expected = {
+       	 "sq_r000_c000": {"array_row": 0,"array_col": 0,"x_um": 1.0,"y_um": 1.0},
+       	 "sq_r000_c001": {"array_row": 0,"array_col": 1,"x_um": 3.0,"y_um": 1.0},
+       	 "sq_r001_c000": {"array_row": 1,"array_col": 0,"x_um": 1.0,"y_um": 3.0},
+       	 "sq_r001_c001": {"array_row": 1,"array_col": 1,"x_um": 3.0,"y_um": 3.0}
+    	}
+	got = make_grid(field_width_um=4,field_height_um=4,square_size_um=2)
+	assert got == expected
+
+# Include a second parameterization test to validate the inputs - no negative numbers, etc. allowed
+
+@pytest.mark.parametrize(
+    "width, height, square_size",
+    [
+        (0, 4, 2),
+        (4, -1, 2),
+        (4, 4, 0),
+        (5, 4, 2),
+        (float("nan"), 4, 2),
+        (float("inf"), 4, 2),
+    ],
+)
+def test_make_grid_rejects_invalid_dimensions(width, height, square_size):
+    with pytest.raises(ValueError):
+        make_grid(width, height, square_size)
 
 def test_read_config(tmp_path):
-    """The reader returns the values stored in the YAML file."""
+    """The reader returns validated settings from the YAML file."""
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
         "field_width_um: 4\n"
@@ -16,11 +42,11 @@ def test_read_config(tmp_path):
         encoding="utf-8",
     )
 
-    assert read_config(config_path) == {
-        "field_width_um": 4,
-        "field_height_um": 2,
-        "square_size_um": 2,
-    }
+    assert read_config(config_path) == GridConfig(
+        field_width_um=4,
+        field_height_um=2,
+        square_size_um=2,
+    )
 
 
 def test_write_coordinates_known_answer(tmp_path):
@@ -65,8 +91,8 @@ def test_write_coordinates_preserves_existing_file(tmp_path):
     assert output_path.read_bytes() == original
 
 
-def test_make_grid_csv_known_answer(tmp_path):
-    """The full workflow creates a folder and writes the expected grid."""
+def test_main_known_answer(tmp_path, monkeypatch, capsys):
+    """The terminal workflow writes the expected grid."""
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
         "field_width_um: 4\n"
@@ -76,9 +102,19 @@ def test_make_grid_csv_known_answer(tmp_path):
     )
     output_path = tmp_path / "new_results" / "coordinates.csv"
 
-    returned_path = make_grid_csv(config_path, output_path)
+# Monkeypatch temporarily supplies the terminal arguments that main() reads. Pytest will restore them afterwards
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "make_grid_csv",
+            "--config",
+            str(config_path),
+            "--output",
+            str(output_path),
+        ],
+    )
 
-    assert returned_path == output_path
+    main()
 
     with output_path.open(encoding="utf-8", newline="") as fh:
         rows = list(csv.reader(fh))
@@ -88,3 +124,5 @@ def test_make_grid_csv_known_answer(tmp_path):
         ["sq_r000_c000", "0", "0", "1.0", "1.0"],
         ["sq_r000_c001", "0", "1", "3.0", "1.0"],
     ]
+# Capsys captures printed message so we can checm it. All of the files are created in tmp_path
+    assert capsys.readouterr().out == f"Wrote {output_path}\n"
