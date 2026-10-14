@@ -10,6 +10,7 @@ seed: 20260101          # fixes every random draw; recorded in run_metadata.json
 n_cells: 20
 field_width_um: 320.0
 field_height_um: 320.0
+square_size_um: 2.0
 cell_types:
   - type_a
   - type_b
