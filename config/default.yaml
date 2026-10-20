@@ -13,3 +13,8 @@ field_height_um: 320.0
 cell_types:
   - type_a
   - type_b
+
+
+# Cell placement (place_cells)
+cell_radius_um: 15.0            # radius of each round cell; placeholder dont make it negative 
+distribution_shape: uniform     # uniform | gaussian | clustered
