@@ -16,7 +16,7 @@ cell_types:
   - type_b
 
 # Week 5 Expression programs
-n_genes: 100 # Total number of distinct genes in the simulation
-n_marker_genes: 10 # Number of marker genes assigned to each cell type
+n_genes: 100 # Total number of distinct genes
+n_marker_genes: 10 # Number of marker genes per cell type
 marker_boost: 5.0 # Controls how the expression of genes is distributed
 baseline_spread: 1.0 # Controls how many transcripts you expect to capture from each cell
