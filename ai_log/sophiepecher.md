@@ -40,3 +40,18 @@ our own future simulation outputs will be generated data.
 - Decision: Accepted after verification. Used an exact whole-square check
   and exclusive file creation to protect existing outputs.
 
+26-10-14
+- Prompt: Modify the read_config() function so that the check to ensure the file 
+  is read correctly is actually happening when we run the function. Also pass the file
+  as an object, so that when we need to reference values from the config file later
+  we do not need to type strings. We can just access the values through attributes. 
+- What it produced: A modified read_config() function which uses dataclass to define 
+  a container which names attributes that we will want to use later when running
+  the make_grid() function. 
+- How it was checked: there is a configuration reader test which returns validated
+  settings from the .yaml file. This test asserts that the function is able to read variables from the 
+  file and return the expected numerical values associated with them.
+- How it was wrong: This was a great improvement, but the previous commit was far too
+  modular and redundant. The previous make_grid.py and write_coordinates.py files were 
+  depricated; everything now lives in one file and can be run with one wrapper function main(). 
+- Decision: Kept the AI improvements, and also the oranigzational modifications that I made. 
