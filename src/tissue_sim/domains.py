@@ -8,7 +8,7 @@ Square domains:
 
 Cell annotations:
     cells_from_placement() extracts unique cells.
-    It renames center_x_um and center_y_um to x_um and y_um.
+    Cell centres remain named center_x_um and center_y_um.
     assign_cell_types() assigns cell domains and cell types.
 
 Empty squares have cell_id=0.
@@ -47,8 +47,8 @@ def cells_from_placement(placement_df: pd.DataFrame) -> pd.DataFrame:
     -------
     pandas.DataFrame
         One row per cell.
-        Columns: cell_id, x_um, y_um, radius_um.
-        Cell-centre coordinates are renamed to x_um and y_um.
+        Columns: cell_id, center_x_um, center_y_um, radius_um.
+        Cell-centre column names are preserved.
         Empty squares (cell_id=0) are excluded.
         Pass this result to assign_cell_types().
 
@@ -68,7 +68,6 @@ def cells_from_placement(placement_df: pd.DataFrame) -> pd.DataFrame:
         .loc[lambda df: ~df["cell_id"].isin([0, "0"])]
         .dropna(subset=["cell_id"])
         .drop_duplicates()
-        .rename(columns={"center_x_um": "x_um", "center_y_um": "y_um"})
     )
 
     if not cells["cell_id"].is_unique:
@@ -80,7 +79,11 @@ def cells_from_placement(placement_df: pd.DataFrame) -> pd.DataFrame:
 def domains_from_csv(
     path, K, field_width_um, cell_types, domain_probabilities, rng
 ):
-    """Read Sven's CSV. Return annotated cells and square domains."""
+    """Read Sven's CSV. Return annotated cells and square domains.
+
+    Cell coordinates: center_x_um, center_y_um.
+    Square output: square_id, domain.
+    """
     grid = pd.read_csv(
         path, dtype={"square_id": "string", "cell_id": "string"}
     )
@@ -89,6 +92,7 @@ def domains_from_csv(
         cells_from_placement(grid),
         K, field_width_um, cell_types, domain_probabilities, rng,
     )
+
     return cells, square_domains
 
 
@@ -177,28 +181,37 @@ def get_domain_id(x: float, y: float, K: int, field_width_um: float) -> int:
     return left
 
 
-def _position_domains(cells_df: pd.DataFrame, K: int, field_width_um: float) -> np.ndarray:
+def _position_domains(
+    positions_df: pd.DataFrame,
+    K: int,
+    field_width_um: float,
+    x_column: str,
+    y_column: str,
+) -> np.ndarray:
     """Validate coordinates and return one domain per position."""
-    # Validate geometry even when there are no rows to label.
     get_domain_id(0.0, 0.0, K, field_width_um)
-    if not isinstance(cells_df, pd.DataFrame):
-        raise TypeError("positions must be a pandas DataFrame")
-    if not cells_df.columns.is_unique:
-        raise ValueError("DataFrame column names must be unique")
-    if not {"x_um", "y_um"}.issubset(cells_df.columns):
-        raise ValueError("positions must contain x_um and y_um columns")
 
-    # Label centers in input order, before making any random draws.
+    if not isinstance(positions_df, pd.DataFrame):
+        raise TypeError("positions must be a pandas DataFrame")
+    if not positions_df.columns.is_unique:
+        raise ValueError("DataFrame column names must be unique")
+    if not {x_column, y_column}.issubset(positions_df.columns):
+        raise ValueError(
+            f"positions must contain {x_column} and {y_column} columns"
+        )
+
     labels = []
-    for row, (x, y) in enumerate(zip(cells_df["x_um"], cells_df["y_um"], strict=True)):
+    for row, (x, y) in enumerate(
+        zip(positions_df[x_column], positions_df[y_column], strict=True)
+    ):
         try:
             labels.append(get_domain_id(x, y, K, field_width_um))
         except (TypeError, ValueError) as exc:
             raise ValueError(
                 f"Invalid coordinates at row position {row}: {exc}"
             ) from exc
-    domains = np.asarray(labels, dtype=np.int64)
-    return domains
+
+    return np.asarray(labels, dtype=np.int64)
 
 
 def _validate_sampling_inputs(
@@ -264,7 +277,7 @@ def assign_cell_types(
     ----------
     cells_df : pandas.DataFrame
         One row per cell.
-        x_um and y_um are cell-centre coordinates.
+        Cell centres use center_x_um and center_y_um.
         Prepare Sven's output with cells_from_placement() first.
         Extra columns and the index are preserved.
         Existing domain or cell_type columns are rejected.
@@ -288,8 +301,11 @@ def assign_cell_types(
     Returns
     -------
     pandas.DataFrame
-        New table with integer domain and string cell_type columns. Input data
-        are unchanged. Cell radii have no effect on assignment.
+        Copy with integer domain and string cell_type columns.
+        Cell coordinates remain center_x_um and center_y_um.
+        Input data are unchanged.
+        Cell radii do not affect assignment.
+
 
     Raises
     ------
@@ -299,7 +315,7 @@ def assign_cell_types(
         For invalid geometry, coordinates, names, probabilities, RNG, or columns.
         All validation completes before any random draws are made.
     """
-    domains = _position_domains(cells_df, K, field_width_um)
+    domains = _position_domains(cells_df, K, field_width_um, "center_x_um", "center_y_um")
     if {"domain", "cell_type"}.intersection(cells_df.columns):
         raise ValueError("cells_df already contains domain or cell_type columns")
     names, probabilities = _validate_sampling_inputs(
@@ -317,8 +333,8 @@ def assign_cell_types(
 def _square_domains(
     coordinates_df: pd.DataFrame, K: int, field_width_um: float
 ) -> np.ndarray:
-    """Validate square IDs and return domains from square centres."""
-    domains = _position_domains(coordinates_df, K, field_width_um)
+    """Validate square IDs and return domains from square centres."""    
+    domains = _position_domains(coordinates_df, K, field_width_um, "x_um", "y_um")
 
     if "square_id" not in coordinates_df:
         raise ValueError("coordinates_df must contain square_id")
