@@ -1,4 +1,6 @@
 import numpy as np
+from pathlib import Path
+import yaml
 
 def make_baseline_distribution(n_genes, baseline_spread, random_generator):
     """
@@ -222,3 +224,59 @@ def generate_cell_type_programs(cell_types, baseline, marker_genes, marker_boost
         )
 
     return expression_programs
+
+
+
+def main():
+    # Load configuration
+    config_path = (
+            Path(__file__).resolve().parents[2]
+            / "config"
+            / "default.yaml"
+    )
+    with config_path.open() as file:
+        config = yaml.safe_load(file)
+
+    # Get parameters from config
+    cell_types = config["cell_types"]
+    n_genes = config["n_genes"]
+    n_marker_genes = config["n_marker_genes"]
+    baseline_spread = config["baseline_spread"]
+    marker_boost = config["marker_boost"]
+
+    # Reproducible random number generator
+    rng = np.random.default_rng(config["seed"])
+
+    # 1. Generate the shared baseline distribution
+    baseline = make_baseline_distribution(
+        n_genes=n_genes,
+        baseline_spread=baseline_spread,
+        random_generator=rng,
+    )
+
+    # 2. Select non-overlapping marker genes
+    marker_genes = generate_marker_genes(
+        cell_types=cell_types,
+        n_genes=n_genes,
+        n_marker_genes=n_marker_genes,
+        random_generator=rng,
+    )
+
+    # 3. Generate an expression program for each cell type
+    expression_programs = generate_cell_type_programs(
+        cell_types=cell_types,
+        baseline=baseline,
+        marker_genes=marker_genes,
+        marker_boost=marker_boost,
+    )
+
+    # Convert outputs to ordinary Python lists
+    expression_programs = {
+        cell_type: probabilities.tolist()
+        for cell_type, probabilities in expression_programs.items()
+    }
+    #print(expression_programs)
+
+
+if __name__ == "__main__":
+    main()
