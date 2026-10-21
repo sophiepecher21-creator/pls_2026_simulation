@@ -10,12 +10,26 @@
 - What it produced: Explained that the notebook uses a temporary project that is not installed, so it temporarily adds src/ to PYTHONPATH to allow from spatial_decode.cleaning import clean. In the real project, we just use pip install -e .
 - Decision: Accepted — PYTHONPATH is only a temporary workaround for the notebook.
 
-## 14-07-2026 — read_globals()
+## 14-10-2026 — read_globals()
 - Prompt / question: Correct my implementation for read_globals()
 - What it produced: corrected implementation with line ```value = func.__globals__[name]```
 - How I checked it: I ran the code but there was an error
 - What was wrong: ```func.__globals__[name]``` has no items
 - Decision: rejected because ```__globals__``` is not a dict
+
+## 20-10-2026 — expression_programs.py
+- Prompt / question: Helped me implement all necessary functions for my python file, validate all parameters. 
+- What it produced: Code which a carefully read and edited if not working correctly.
+- How I checked it: run several tests for different types of possible problems.
+- What was wrong: firstly, marker genes of different cell types could overlap
+- Decision: edited, made sure that marker genes don't overlap between cell types.
+
+## 21-10-2026 — check high expression of non-marker genes
+- Prompt / question: How can we check if these are significantly higher genes compared to others?
+- What it produced: Code calculating mean and median values for each cell type and comparing to non-marker genes using ratio.
+- How I checked it: Mean ratio of marker genes was much higher to non-marker genes and also between different cell types.
+- What was wrong: Printing top 20 genes for each cell type, some of these top genes were not marker-genes, they had higher expression than marker genes, but these high expressed non-marker genes were same for all cell types.
+- Decision: accepted, because although non-marker have high expression, they are equally expressed in all the types, which is not a problem, because then they are not considered as marker-genes. 
 
 ## <date> — <what I was building>
 - Prompt / question: <what I asked the AI or wrote myself>
