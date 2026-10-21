@@ -8,22 +8,13 @@ from scipy.spatial import cKDTree
 
 DEFAULT_CONFIG = "config/default.yaml"
 
+# columns this script adds to (or overwrites in) the CSV
+CELL_COLUMNS = ["cell_id", "center_x_um", "center_y_um", "radius_um"]
+
 
 # ---------------------------------------------------------------------------
 # config + csv helpers
 # ---------------------------------------------------------------------------
-
-def _find_key(data, key):
-    """Find a key anywhere in a nested dict (config values may be nested)."""
-    if isinstance(data, dict):
-        if key in data:
-            return data[key]
-        for value in data.values():
-            found = _find_key(value, key)
-            if found is not None:
-                return found
-    return None
-
 
 def load_config(config_path=DEFAULT_CONFIG):
     """Load the YAML config file into a dict."""
@@ -35,7 +26,7 @@ def load_config(config_path=DEFAULT_CONFIG):
 
 
 def _require(config, key):
-    value = _find_key(config, key)
+    value = config.get(key)
     if value is None:
         raise KeyError(f"'{key}' is missing in the config file.")
     return value
@@ -58,12 +49,15 @@ def read_coordinates(path):
 
 
 def _write_csv(path, rows):
+    """Write rows to `path`, replacing the file (via a temp file, so a crash
+    cannot leave a half-written CSV behind)."""
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as fh:
+    tmp = path.with_name(path.name + ".tmp")
+    with tmp.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
+    tmp.replace(path)
 
 
 # ---------------------------------------------------------------------------
@@ -71,15 +65,8 @@ def _write_csv(path, rows):
 # ---------------------------------------------------------------------------
 
 def _number_of_cells(config):
-    """Number of cells: 'n_cells' if set, otherwise density * field area."""
-    n_cells = _find_key(config, "n_cells")
-    if n_cells is None:
-        density = _find_key(config, "cell_density_per_um2")
-        if density is None:
-            raise KeyError("Give either 'n_cells' or 'cell_density_per_um2' in the config file.")
-        area = float(_require(config, "field_width_um")) * float(_require(config, "field_height_um"))
-        n_cells = round(float(density) * area)
-    n_cells = int(n_cells)
+    """Number of cells, read from 'n_cells' in the config file."""
+    n_cells = int(_require(config, "n_cells"))
     if n_cells < 1:
         raise ValueError("The number of cells must be at least 1.")
     return n_cells
@@ -93,22 +80,24 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
         field_width_um     : width of the whole field in um (x from 0 to width)
         field_height_um    : height of the whole field in um (y from 0 to height)
         cell_radius_um     : radius of each round cell in um
-        n_cells            : concrete number of cells (optional; if set, it
-                             overrides the density)
-        cell_density_per_um2 : cells per um^2; N = density * width * height
-                             (used only when n_cells is not set)
+        n_cells            : number of cells to place
         distribution_shape : "uniform", "gaussian" or "clustered"
         seed               : integer or null (null = different every run)
 
     coordinates : list of dicts (one per measurement square) with the columns
                   "x_um" and "y_um", e.g. from read_coordinates().
 
-    Returns (coordinates, cells):
-      coordinates : copy of the records with a new column "cell_id"
-                    (1..N, or 0 if the square center lies in no cell)
-      cells       : list of dicts with cell_id, center_x_um, center_y_um,
-                    radius_um
+    Returns (records, cells):
+      records : copy of the rows (all original columns kept, e.g. square_id,
+                array_row, array_col, x_um, y_um) plus cell_id (1..N, or 0 if
+                the square center lies in no cell), center_x_um, center_y_um
+                and radius_um (empty if cell_id is 0)
+      cells   : list of dicts with cell_id, center_x_um, center_y_um,
+                radius_um
     """
+    if not coordinates:
+        raise ValueError("No coordinates in input.")
+
     config = load_config(config_path)
     field_width_um = float(_require(config, "field_width_um"))
     field_height_um = float(_require(config, "field_height_um"))
@@ -117,7 +106,7 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
     distribution_shape = str(_require(config, "distribution_shape"))
     if distribution_shape not in ("uniform", "gaussian", "clustered"):
         raise ValueError(f"Unknown distribution_shape: {distribution_shape!r}")
-    seed = _find_key(config, "seed")
+    seed = config.get("seed")
 
     rng = np.random.default_rng(seed)
 
@@ -129,6 +118,8 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
     width, height = xmax - xmin, ymax - ymin
     if width <= 0 or height <= 0:
         raise ValueError("field_width_um and field_height_um must be positive.")
+    if cell_radius <= 0:
+        raise ValueError("cell_radius_um must be positive.")
 
     cx, cy = xmin + width / 2, ymin + height / 2
     if distribution_shape == "clustered":
@@ -164,8 +155,19 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
         inside = dist <= cell_radius
         cell_ids[inside] = nearest[inside] + 1  # number cells 1..N
 
+    # --- write the cell info into every row (empty for squares outside) -----
     for record, cell_id in zip(records, cell_ids):
-        record["cell_id"] = int(cell_id)
+        cell_id = int(cell_id)
+        record["cell_id"] = cell_id
+        if cell_id:
+            center = centers[cell_id - 1]
+            record["center_x_um"] = float(center[0])
+            record["center_y_um"] = float(center[1])
+            record["radius_um"] = cell_radius
+        else:
+            record["center_x_um"] = ""
+            record["center_y_um"] = ""
+            record["radius_um"] = ""
 
     cells = [
         {
@@ -184,26 +186,17 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
 # ---------------------------------------------------------------------------
 
 def main():
-    p = argparse.ArgumentParser(description="Place round cells on the measurement grid.")
-    p.add_argument("--input", required=True, help="grid CSV (coordinates.csv)")
+    p = argparse.ArgumentParser(
+        description="Place round cells on the measurement grid. The input CSV "
+                    "is updated in place (columns: " + ", ".join(CELL_COLUMNS) + ").")
+    p.add_argument("--input", required=True, help="grid CSV (coordinates.csv), edited in place")
     p.add_argument("--config", default=DEFAULT_CONFIG,
                    help=f"YAML config file (default: {DEFAULT_CONFIG})")
-    p.add_argument("--output", help="CSV with cell_id column "
-                                    "(default: <input folder>/coordinates_with_cells.csv)")
-    p.add_argument("--cells-output", help="CSV with the cell table "
-                                          "(default: <input folder>/cells.csv)")
     args = p.parse_args()
 
-    in_path = Path(args.input)
-    out_path = Path(args.output) if args.output else in_path.with_name("coordinates_with_cells.csv")
-    cells_path = Path(args.cells_output) if args.cells_output else in_path.with_name("cells.csv")
-
-    coordinates = read_coordinates(in_path)
+    coordinates = read_coordinates(args.input)
     records, cells = place_cells(coordinates, args.config)
-
-    _write_csv(out_path, records)
-    if cells:
-        _write_csv(cells_path, cells)
+    _write_csv(args.input, records)
 
     requested = _number_of_cells(load_config(args.config))
     if len(cells) < requested:
@@ -211,8 +204,7 @@ def main():
               f"(field too crowded for the cell radius).")
     print(f"cells placed: {len(cells)}")
     print(f"squares inside a cell: {sum(1 for r in records if r['cell_id'])} of {len(records)}")
-    print(f"wrote {out_path}")
-    print(f"wrote {cells_path}")
+    print(f"updated {args.input}")
 
 
 if __name__ == "__main__":
