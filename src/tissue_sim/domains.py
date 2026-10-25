@@ -1,6 +1,6 @@
 """Spatial domains and cell-type assignment.
 
-Input: Sven's DataFrames or coordinates.csv.
+Input: Cell-placement DataFrames or coordinates.csv.
 Use domains_from_csv() to load the CSV and annotate cells and squares.
 
 Square domains:
@@ -12,7 +12,7 @@ Cell annotations:
     assign_cell_types() assigns cell domains and cell types.
 
 Empty squares have cell_id=0.
-Prefer Sven's separate cells output to include every placed cell.
+Prefer the complete cell-placement table to include every placed cell.
 """
 
 
@@ -33,13 +33,13 @@ __all__ = [
 ]
 
 def cells_from_placement(placement_df: pd.DataFrame) -> pd.DataFrame:
-    """Prepare Sven's cell-placement output.
+    """Prepare cell-placement data.
 
     Parameters
     ----------
     placement_df : pandas.DataFrame
-        Sven's coordinates.csv, already loaded as a DataFrame.
-        Alternatively, a DataFrame from his separate cells output.
+        coordinates.csv, already loaded as a DataFrame.
+        Alternatively, a complete cell-placement DataFrame.
         Required columns:
         cell_id, center_x_um, center_y_um, radius_um.
 
@@ -278,7 +278,7 @@ def assign_cell_types(
     cells_df : pandas.DataFrame
         One row per cell.
         Cell centres use center_x_um and center_y_um.
-        Prepare Sven's output with cells_from_placement() first.
+        Prepare cell-placement data with cells_from_placement() first.
         Extra columns and the index are preserved.
         Existing domain or cell_type columns are rejected.
     K : int
