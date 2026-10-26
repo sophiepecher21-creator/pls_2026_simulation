@@ -1,7 +1,8 @@
 """Spatial domains and cell-type assignment.
 
 Input: Cell-placement DataFrames or coordinates.csv.
-Use domains_from_csv() to load the CSV and annotate cells and squares.
+domains_from_csv() adds domain and cell_type to the original CSV.
+The input CSV is overwritten when this function is called.
 
 Square domains:
     build_domains_dataframe() uses square_id, x_um and y_um.
@@ -32,70 +33,6 @@ __all__ = [
 	"domains_from_csv",
 ]
 
-def cells_from_placement(placement_df: pd.DataFrame) -> pd.DataFrame:
-    """Prepare cell-placement data.
-
-    Parameters
-    ----------
-    placement_df : pandas.DataFrame
-        coordinates.csv, already loaded as a DataFrame.
-        Alternatively, a complete cell-placement DataFrame.
-        Required columns:
-        cell_id, center_x_um, center_y_um, radius_um.
-
-    Returns
-    -------
-    pandas.DataFrame
-        One row per cell.
-        Columns: cell_id, center_x_um, center_y_um, radius_um.
-        Cell-centre column names are preserved.
-        Empty squares (cell_id=0) are excluded.
-        Pass this result to assign_cell_types().
-
-    Raises
-    ------
-    KeyError
-        If a required column is missing.
-    ValueError
-        If one cell_id has conflicting centres or radii.
-    """   
-
-
-    cells = (
-        placement_df[
-            ["cell_id", "center_x_um", "center_y_um", "radius_um"]
-        ]
-        .loc[lambda df: ~df["cell_id"].isin([0, "0"])]
-        .dropna(subset=["cell_id"])
-        .drop_duplicates()
-    )
-
-    if not cells["cell_id"].is_unique:
-        raise ValueError("Conflicting centres or radii for the same cell_id")
-
-    return cells
-
-
-def domains_from_csv(
-    path, K, field_width_um, cell_types, domain_probabilities, rng
-):
-    """Read Sven's CSV. Return annotated cells and square domains.
-
-    Cell coordinates: center_x_um, center_y_um.
-    Square output: square_id, domain.
-    """
-    grid = pd.read_csv(
-        path, dtype={"square_id": "string", "cell_id": "string"}
-    )
-    square_domains = build_domains_dataframe(grid, K, field_width_um)
-    cells = assign_cell_types(
-        cells_from_placement(grid),
-        K, field_width_um, cell_types, domain_probabilities, rng,
-    )
-
-    return cells, square_domains
-
-
 
 def _finite_number(value: float, name: str) -> float:
     """Return a finite real value as a float, rejecting invalid scalar inputs."""
@@ -108,7 +45,6 @@ def _finite_number(value: float, name: str) -> float:
     if not np.isfinite(number):
         raise ValueError(f"{name} must be a finite real number")
     return number
-
 
 def _validate_position(
     x: float, y: float, K: int, field_width_um: float
@@ -128,7 +64,6 @@ def _validate_position(
     if y < 0:
         raise ValueError("y must be nonnegative")
     return width, x, y
-
 
 def get_domain_id(x: float, y: float, K: int, field_width_um: float) -> int:
     """Return the equal-width vertical strip containing a physical position.
@@ -213,7 +148,6 @@ def _position_domains(
 
     return np.asarray(labels, dtype=np.int64)
 
-
 def _validate_sampling_inputs(
     cell_types: Sequence[str],
     domain_probabilities: ArrayLike,
@@ -261,6 +195,70 @@ def _validate_sampling_inputs(
     probabilities /= sums[:, None]
 
     return names, probabilities
+
+
+def _square_domains(
+    coordinates_df: pd.DataFrame, K: int, field_width_um: float
+) -> np.ndarray:
+    """Validate square IDs and return domains from square centres."""    
+    domains = _position_domains(coordinates_df, K, field_width_um, "x_um", "y_um")
+
+    if "square_id" not in coordinates_df:
+        raise ValueError("coordinates_df must contain square_id")
+
+    ids = coordinates_df["square_id"]
+    if ids.isna().any() or any(
+        not isinstance(s, str) or not s.strip() for s in ids
+    ):
+        raise ValueError("square_id values must be nonmissing, nonblank strings")
+    if not ids.is_unique:
+        raise ValueError("square_id values must be unique")
+
+    return domains
+
+
+def cells_from_placement(placement_df: pd.DataFrame) -> pd.DataFrame:
+    """Prepare cell-placement data.
+
+    Parameters
+    ----------
+    placement_df : pandas.DataFrame
+        coordinates.csv, already loaded as a DataFrame.
+        Alternatively, a complete cell-placement DataFrame.
+        Required columns:
+        cell_id, center_x_um, center_y_um, radius_um.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per cell.
+        Columns: cell_id, center_x_um, center_y_um, radius_um.
+        Cell-centre column names are preserved.
+        Empty squares (cell_id=0) are excluded.
+        Pass this result to assign_cell_types().
+
+    Raises
+    ------
+    KeyError
+        If a required column is missing.
+    ValueError
+        If one cell_id has conflicting centres or radii.
+    """   
+
+
+    cells = (
+        placement_df[
+            ["cell_id", "center_x_um", "center_y_um", "radius_um"]
+        ]
+        .loc[lambda df: ~df["cell_id"].isin([0, "0"])]
+        .dropna(subset=["cell_id"])
+        .drop_duplicates()
+    )
+
+    if not cells["cell_id"].is_unique:
+        raise ValueError("Conflicting centres or radii for the same cell_id")
+
+    return cells
 
 
 def assign_cell_types(
@@ -330,25 +328,6 @@ def assign_cell_types(
     return result
 
 
-def _square_domains(
-    coordinates_df: pd.DataFrame, K: int, field_width_um: float
-) -> np.ndarray:
-    """Validate square IDs and return domains from square centres."""    
-    domains = _position_domains(coordinates_df, K, field_width_um, "x_um", "y_um")
-
-    if "square_id" not in coordinates_df:
-        raise ValueError("coordinates_df must contain square_id")
-
-    ids = coordinates_df["square_id"]
-    if ids.isna().any() or any(
-        not isinstance(s, str) or not s.strip() for s in ids
-    ):
-        raise ValueError("square_id values must be nonmissing, nonblank strings")
-    if not ids.is_unique:
-        raise ValueError("square_id values must be unique")
-
-    return domains
-
 
 def build_domains_dataframe(
     coordinates_df: pd.DataFrame, K: int, field_width_um: float
@@ -390,4 +369,44 @@ def build_domains_dataframe(
     result = coordinates_df[["square_id"]].copy(deep=True)
     result["domain"] = pd.array([str(d) for d in domains], dtype="string")
     return result
+
+
+
+
+def domains_from_csv(
+    path, K, field_width_um, cell_types, domain_probabilities, rng
+):
+    """Add annotations to the original coordinates.csv.
+
+    domain describes each grid-square centre.
+    cell_type depends on the cell-centre domain.
+    Empty squares have no cell_type.
+    Existing annotations are replaced.
+
+    Returns
+    -------
+    pandas.DataFrame
+        All original columns plus domain and cell_type.
+        The same CSV file is updated.
+    """
+    grid = pd.read_csv(
+        path, dtype={"square_id": "string", "cell_id": "string"}
+    )
+
+    square_domains = build_domains_dataframe(grid, K, field_width_um)
+    cells = assign_cell_types(
+        cells_from_placement(grid),
+        K, field_width_um, cell_types, domain_probabilities, rng,
+    )
+
+    grid["domain"] = square_domains["domain"]
+    grid["cell_type"] = grid["cell_id"].map(
+        cells.set_index("cell_id")["cell_type"]
+    )
+
+    grid.to_csv(path, index=False)
+    return grid
+
+
+
 

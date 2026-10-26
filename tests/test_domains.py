@@ -9,6 +9,7 @@ import pytest
 from tissue_sim.domains import (
     assign_cell_types,
     build_domains_dataframe,
+    domains_from_csv,
     get_domain_id,
 )
 
@@ -97,8 +98,8 @@ def test_cell_crossing_boundary_and_known_types():
     cells = pd.DataFrame(
         {
             "cell_id": ["left", "boundary", "right"],
-            "x_um": [98, 100, 102],
-            "y_um": [10] * 3,
+            "center_x_um": [98, 100, 102],
+            "center_y_um": [10] * 3,
             "radius_um": [5] * 3,
         }
     )
@@ -160,7 +161,7 @@ def test_complete_coverage_and_spatial_contiguity(rows, cols, K):
     ],
 )
 def test_invalid_probabilities_without_rng_consumption(probabilities):
-    cells = pd.DataFrame({"x_um": [1], "y_um": [1]})
+    cells = pd.DataFrame({"center_x_um": [1], "center_y_um": [1]})
     rng = np.random.default_rng(42)
     state = copy.deepcopy(rng.bit_generator.state)
     with pytest.raises(ValueError, match="domain_probabilities"):
@@ -171,7 +172,7 @@ def test_invalid_probabilities_without_rng_consumption(probabilities):
 def test_probability_roundoff_and_immutability():
     probabilities = np.array([[0.5, 0.500000001], [0.5, 0.5]])
     original = probabilities.copy()
-    result = annotate(pd.DataFrame({"x_um": [1], "y_um": [1]}), probabilities)
+    result = annotate(pd.DataFrame({"center_x_um": [1], "center_y_um": [1]}), probabilities)
     assert result["cell_type"].iloc[0] in ["A", "B"]
     np.testing.assert_array_equal(probabilities, original)
 
@@ -180,7 +181,7 @@ def test_probability_roundoff_and_immutability():
 def test_invalid_cell_type_names(names):
     with pytest.raises((TypeError, ValueError), match="cell_types"):
         assign_cell_types(
-            pd.DataFrame({"x_um": [1], "y_um": [1]}),
+            pd.DataFrame({"center_x_um": [1], "center_y_um": [1]}),
             1,
             10,
             names,
@@ -193,8 +194,8 @@ def test_cell_square_consistency_immutability_and_order():
     cells = pd.DataFrame(
         {
             "cell_id": ["c2", "c1", "c3"],
-            "x_um": [150, 98, 100],
-            "y_um": [1, 1, 1],
+            "center_x_um": [150, 98, 100],
+            "center_y_um": [1, 1, 1],
             "radius_um": [4, 5, 3],
             "extra": ["keep", "also keep", "unchanged"],
         },
@@ -204,7 +205,11 @@ def test_cell_square_consistency_immutability_and_order():
     result = annotate(cells)
     pd.testing.assert_frame_equal(cells, before)
     pd.testing.assert_frame_equal(result[cells.columns], cells)
-    squares = cells.rename(columns={"cell_id": "square_id"})
+    squares = cells.rename(columns={
+        "cell_id": "square_id",
+        "center_x_um": "x_um",
+        "center_y_um": "y_um",
+    })    
     square_before = squares.copy(deep=True)
     labels = build_domains_dataframe(squares, 2, 200)
     pd.testing.assert_frame_equal(squares, square_before)
@@ -228,25 +233,40 @@ def test_invalid_square_ids(ids):
 
 @pytest.mark.parametrize("bad", [np.nan, np.inf, None, "bad", -1, 200])
 def test_invalid_table_coordinates_without_rng_consumption(bad):
-    frame = pd.DataFrame({"square_id": ["s1", "s2"], "x_um": [1, bad], "y_um": [1, 1]})
+    squares = pd.DataFrame({
+        "square_id": ["s1", "s2"],
+        "x_um": [1, bad],
+        "y_um": [1, 1],
+    })
+    cells = squares.rename(columns={
+        "x_um": "center_x_um",
+        "y_um": "center_y_um",
+    })
+
     rng = np.random.default_rng(123)
     state = copy.deepcopy(rng.bit_generator.state)
+
     with pytest.raises(ValueError, match="row position 1"):
-        annotate(frame, rng=rng)
+        annotate(cells, rng=rng)
     assert rng.bit_generator.state == state
+
     with pytest.raises(ValueError, match="row position 1"):
-        build_domains_dataframe(frame, 2, 200)
+        build_domains_dataframe(squares, 2, 200)
 
 
 def test_empty_tables_and_geometry_validation():
-    cells = pd.DataFrame(columns=["x_um", "y_um", "cell_id"])
+    cells = pd.DataFrame(columns=["center_x_um", "center_y_um", "cell_id"])
     rng = np.random.default_rng(1)
     state = copy.deepcopy(rng.bit_generator.state)
     result = assign_cell_types(cells, 1, 10, ["A"], [[1]], rng)
     assert result.empty
     assert pd.api.types.is_integer_dtype(result["domain"])
     assert rng.bit_generator.state == state
-    squares = cells.rename(columns={"cell_id": "square_id"})
+    squares = cells.rename(columns={
+        "cell_id": "square_id",
+        "center_x_um": "x_um",
+        "center_y_um": "y_um",
+    })
     labels = build_domains_dataframe(squares, 1, 10)
     assert labels.empty
     assert labels.columns.tolist() == ["square_id", "domain"]
@@ -258,20 +278,33 @@ def test_empty_tables_and_geometry_validation():
 
 
 def test_required_columns_annotation_collisions_and_rng_type():
-    valid = pd.DataFrame({"x_um": [1], "y_um": [1]})
+    cells = pd.DataFrame({
+        "center_x_um": [1],
+        "center_y_um": [1],
+    })
+    squares = pd.DataFrame({"x_um": [1], "y_um": [1]})
+
+    for column in ["center_x_um", "center_y_um"]:
+        with pytest.raises(
+            ValueError, match="center_x_um and center_y_um"
+        ):
+            annotate(cells.drop(columns=column))
+
     for column in ["x_um", "y_um"]:
-        with pytest.raises(ValueError, match="x_um and y_um"):
-            annotate(valid.drop(columns=column))
         with pytest.raises(ValueError):
-            build_domains_dataframe(valid.drop(columns=column), 1, 10)
+            build_domains_dataframe(squares.drop(columns=column), 1, 10)
+
     with pytest.raises(ValueError, match="square_id"):
-        build_domains_dataframe(valid, 1, 10)
+        build_domains_dataframe(squares, 1, 10)
+
     for column in ["domain", "cell_type"]:
         with pytest.raises(ValueError, match="already contains"):
-            annotate(valid.assign(**{column: "old"}))
+            annotate(cells.assign(**{column: "old"}))
+
     with pytest.raises(TypeError, match="rng"):
-        assign_cell_types(valid, 1, 10, ["A"], [[1]], None)
-    duplicated = pd.concat([valid, valid[["x_um"]]], axis=1)
+        assign_cell_types(cells, 1, 10, ["A"], [[1]], None)
+
+    duplicated = pd.concat([cells, cells[["center_x_um"]]], axis=1)
     with pytest.raises(ValueError, match="column names"):
         annotate(duplicated)
 
@@ -280,7 +313,7 @@ def test_required_columns_annotation_collisions_and_rng_type():
 def test_general_geometry_and_type_counts(width, K, n_types):
     names = [f"type_{i}" for i in range(n_types)]
     cells = pd.DataFrame(
-        {"x_um": width * (np.arange(K) + 0.5) / K, "y_um": np.zeros(K)}
+        {"center_x_um": width * (np.arange(K) + 0.5) / K, "center_y_um": np.zeros(K)}
     )
     probabilities = np.zeros((K, n_types))
     probabilities[np.arange(K), np.arange(K) % n_types] = 1
@@ -294,7 +327,7 @@ def test_general_geometry_and_type_counts(width, K, n_types):
 def test_statistical_frequencies_for_every_domain():
     n = 6000
     probabilities = np.array([[0.8, 0.1, 0.1], [0.1, 0.8, 0.1], [0.1, 0.1, 0.8]])
-    cells = pd.DataFrame({"x_um": np.repeat([50, 150, 250], n), "y_um": 1})
+    cells = pd.DataFrame({"center_x_um": np.repeat([50, 150, 250], n), "center_y_um": 1})
     result = assign_cell_types(
         cells, 3, 300, ["A", "B", "C"], probabilities, np.random.default_rng(42)
     )
@@ -312,7 +345,7 @@ def test_statistical_frequencies_for_every_domain():
 
 
 def test_reproducibility_and_shared_rng_advancement():
-    cells = pd.DataFrame({"x_um": np.ones(100), "y_um": np.ones(100)})
+    cells = pd.DataFrame({"center_x_um": np.ones(100), "center_y_um": np.ones(100)})
     rng = np.random.default_rng(42)
     probabilities = [[0.5, 0.5], [0.5, 0.5]]
     first = annotate(cells, probabilities, rng)
@@ -334,7 +367,7 @@ def test_csv_contract_round_trip(tmp_path):
 
 @pytest.mark.parametrize("names", [{"A", "B"}, frozenset({"A", "B"}), {"A": 1, "B": 2}])
 def test_reject_unordered_or_mapping_cell_types(names):
-    cells = pd.DataFrame({"x_um": [1], "y_um": [1]})
+    cells = pd.DataFrame({"center_x_um": [1], "center_y_um": [1]})
     rng = np.random.default_rng(42)
     state = copy.deepcopy(rng.bit_generator.state)
     with pytest.raises(TypeError, match="cell_types"):
@@ -351,7 +384,7 @@ def test_reject_unordered_or_mapping_cell_types(names):
     ],
 )
 def test_reject_complex_probabilities(probabilities):
-    cells = pd.DataFrame({"x_um": [1], "y_um": [1]})
+    cells = pd.DataFrame({"center_x_um": [1], "center_y_um": [1]})
     rng = np.random.default_rng(42)
     state = copy.deepcopy(rng.bit_generator.state)
     with pytest.raises(ValueError, match="domain_probabilities"):
@@ -361,8 +394,58 @@ def test_reject_complex_probabilities(probabilities):
 
 @pytest.mark.parametrize("names", [["A", "B"], ("A", "B"), np.array(["A", "B"])])
 def test_ordered_cell_types_keep_probability_column_mapping(names):
-    cells = pd.DataFrame({"x_um": [50, 150], "y_um": [1, 1]})
+    cells = pd.DataFrame({"center_x_um": [50, 150], "center_y_um": [1, 1]})
     result = assign_cell_types(
         cells, 2, 200, names, np.eye(2), np.random.default_rng(42)
     )
     assert result["cell_type"].tolist() == ["A", "B"]
+
+
+def test_coordinates_csv_is_updated_in_place(tmp_path):
+    path = tmp_path / "coordinates.csv"
+    original = pd.DataFrame({
+        "square_id": ["s1", "s2", "s3"],
+        "array_row": [0, 0, 0],
+        "array_col": [0, 1, 2],
+        "x_um": [98, 102, 150],
+        "y_um": [1, 1, 1],
+        "cell_id": ["1", "1", "0"],
+        "center_x_um": [101.0, 101.0, np.nan],
+        "center_y_um": [1.0, 1.0, np.nan],
+        "radius_um": [5.0, 5.0, np.nan],
+    })
+    original.to_csv(path, index=False)
+
+    domains_from_csv(
+        path, 2, 200, ["A", "B"], np.eye(2),
+        np.random.default_rng(42),
+    )
+
+    updated = pd.read_csv(
+        path,
+        dtype={
+            "square_id": "string",
+            "cell_id": "string",
+            "domain": "string",
+            "cell_type": "string",
+        },
+    )
+
+    # Original data and row order are preserved.
+    pd.testing.assert_frame_equal(
+        updated[original.columns],
+        original.astype({"square_id": "string", "cell_id": "string"}),
+    )
+    assert updated.columns.tolist() == [
+        *original.columns, "domain", "cell_type"
+    ]
+
+    # Square s1 is left of the boundary; its cell centre is right.
+    assert updated["domain"].tolist() == ["0", "1", "1"]
+
+    # Both squares belonging to cell 1 receive its single cell type.
+    assert updated["cell_type"].iloc[:2].tolist() == ["B", "B"]
+    assert pd.isna(updated["cell_type"].iloc[2])
+
+    # No additional output CSV was created.
+    assert list(tmp_path.iterdir()) == [path]
