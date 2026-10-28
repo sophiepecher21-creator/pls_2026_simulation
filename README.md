@@ -12,10 +12,13 @@
 ## What this does
 
 tissue-sim simulates a two-dimensional tissue for testing spatial
-transcriptomics analysis methods. The current Week 3 implementation places
-cells in two vertical domains, assigns one cell type to each domain, and
-writes a cell table and a provenance record. Transcript generation, grid
-assignment, and the full Data Contract outputs are planned.
+transcriptomics analysis methods. The Week 6 pipeline builds the measurement
+grid, places non-overlapping cells, assigns domains and types, builds expression
+programs, generates positioned transcripts, and aggregates them to final tables.
+Stages exchange Python objects; no intermediate CSV is read by the pipeline.
+
+This is a partial dataset: the independent reference experiment, contract
+metadata, and full dataset validator are planned for the next milestone.
 
 ## Install
 
@@ -35,7 +38,7 @@ course document *Running a project from GitHub*.
 python -m tissue_sim.simulation \
   --config config/default.yaml \
   --data-dir data/raw \
-  --out-dir results
+  --out-dir results/connected_run_001
 ```
 
 ## Repository layout
@@ -67,7 +70,50 @@ data/raw/reference_dataset/dataset/ground_truth/. It is given data that
 this project cannot regenerate. Ground truth produced by our own simulator
 will instead be generated output.
 
-The program writes toy_cells.csv and run_metadata.json to results/.
+Choose a new output directory for each run; existing directories are protected.
+The connected run writes:
+
+```text
+results/connected_run_001/
+├── coordinates.csv           # complete square grid, five contract columns
+├── counts.csv                # all squares × all genes, including zeros
+├── ground_truth/
+│   ├── composition.csv       # sparse square/type transcript counts
+│   ├── domains.csv           # square-centre domain labels
+│   └── params.json           # settings, baseline, programs, marker indices
+├── diagnostics/
+│   ├── cells.csv             # all placed cells with geometry, type and domain
+│   └── transcripts.csv       # individual in-field transcripts
+└── run_metadata.json         # provenance and partial-dataset status
+```
+
+`config/default.yaml` is loaded safely once into `SimulationConfig`. Use YAML
+numbers and lists, not quoted numbers or Python expressions. Domain probability
+rows correspond to domains; columns and transcript means follow `cell_types` order.
+Transcript means describe captured RNA per type and can differ between types.
+The new defaults use two mixed domains and means of 20 and 40 transcripts.
+
+One shared NumPy generator is seeded once per run. Fixed configuration, seed,
+software environment and stage order reproduce the numerical tables exactly.
+This establishes a new baseline compared with the former independent scripts,
+which restarted their generators. The provenance timestamp may differ.
+Transcripts outside the field are discarded; all placed cells contribute even
+if their disk contains no measurement-square centre. Composition combines
+contributions from different cells of the same type. Crowded placements that
+cannot fit every requested cell raise an error instead of silently shrinking
+the tissue.
+
+For Python use, call `read_simulation_config(path)` followed by `simulate(config)`
+from `tissue_sim.configuration` and `tissue_sim.simulation`, respectively.
+`simulate` performs no file I/O and returns a `SimulationResult` containing
+DataFrames and parameters. `run(config_path, raw_dir, out_dir)` verifies raw data,
+calls `simulate`, and writes outputs. The raw-data check is retained for project
+provenance; these supplied files do not drive the simulation.
+
+Standalone grid, placement and transcript commands remain available as file I/O
+wrappers. `place_cells(coordinates, config, rng)` now takes a configuration object
+and Generator. `generate_transcripts` now takes the complete typed cell DataFrame;
+the outdated toy cell table is no longer used.
 Cleaning steps belong in data/interim/. Raw data, intermediate data, and
 results are excluded from Git; source code, configuration, tests,
 documentation, and the checksum manifest are committed.
