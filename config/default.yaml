@@ -11,6 +11,18 @@ n_cells: 20
 field_width_um: 320.0
 field_height_um: 320.0
 square_size_um: 2.0
+cell_types: ["type_a", "type_b"]
+
+# Expression programs
+n_genes: 100 # Total number of distinct genes
+n_marker_genes: 10 # Number of marker genes per cell type
+marker_boost: 10.0 # Multiplicative factor applied to marker genes
+baseline_spread: 1.0 # Standard deviation of the log-normal distribution
 cell_types:
   - type_a
   - type_b
+
+
+# Cell placement (place_cells)
+cell_radius_um: 15.0            # radius of each round cell; placeholder dont make it negative 
+distribution_shape: uniform     # uniform | gaussian | clustered
