@@ -1,9 +1,12 @@
-import numpy as np
 import pytest
-from prometheus_client.utils import INF
+import numpy as np
 
-from tissue_sim.expression_programs import *
-
+from tissue_sim.expression_programs import (
+boost_marker_genes,
+generate_cell_type_programs,
+generate_marker_genes,
+make_baseline_distribution,
+)
 
 def test_baseline_probabilities_sum_to_one():
     rng = np.random.default_rng(42)
