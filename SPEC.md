@@ -68,3 +68,23 @@ generated artifact.
 Input: When we input information to create a square of cells at 2-D positions, with spatial domains, cell types that are dominant in certain domains, and some genes/marker genes given the spatial constraints of a Visium grid...
 
 Expected output: The output should, at minimum, be able to bin output to 8 µm and 16 µm, four 8 µm bins sum exactly to their 16 µm bin, gene by gene. Every (row, col) appears exactly once; µm coordinates match the indices. 
+
+
+## Week 6 connected pipeline
+
+The Week 3 toy is superseded by the connected pipeline. The original criteria
+above describe that historical milestone. Current acceptance criteria:
+
+1. A single simulation command connects grid, placement, domains, expression,
+   transcript generation and aggregation through in-memory objects.
+2. Repeated runs with the same configuration and seed reproduce numerical tables.
+3. Gene counts and square/type composition both conserve in-field transcripts;
+   empty squares remain in the grid and gene matrix.
+4. A known-answer aggregation combines contributions across cells, and exact
+   8-to-16 µm aggregation holds gene by gene.
+5. Unsafe YAML constructors and malformed settings are rejected before sampling.
+6. Raw-data verification still precedes output; existing result directories are protected.
+
+Independent reference sampling and full contract metadata/validation remain
+pending; the current output is explicitly a partial dataset. See README for its
+layout. `diagnostics/` retains cell/transcript details outside aggregate ground truth.

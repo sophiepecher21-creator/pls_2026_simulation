@@ -228,6 +228,7 @@ def generate_cell_type_programs(cell_types, baseline, marker_genes, marker_boost
 
 
 def main():
+    """Build expression programs for the default configuration as a standalone example."""
     # Load configuration
     config_path = (
             Path(__file__).resolve().parents[2]
