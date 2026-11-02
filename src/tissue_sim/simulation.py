@@ -1,6 +1,8 @@
 """Connect the simulation stages in memory and export their final tables."""
 
 import argparse
+import datetime
+from importlib.metadata import version
 from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
@@ -19,7 +21,9 @@ from tissue_sim.expression_programs import (
 from tissue_sim.generate_transcripts_with_coords import generate_transcripts
 from tissue_sim.make_grid_csv import make_grid
 from tissue_sim.place_cells import place_cells
-from tissue_sim.provenance import require_verified, stamp
+from tissue_sim.provenance import require_verified, stamp, git_commit, git_clean
+from tissue_sim.reference import generate_reference
+from tissue_sim.validate import validate_dataset
 
 
 @dataclass
@@ -33,10 +37,17 @@ class SimulationResult:
     composition: pd.DataFrame
     domains: pd.DataFrame
     params: dict
+    reference_counts: pd.DataFrame
+    reference_labels: pd.DataFrame
 
 
 def simulate(config):
-    """Run scientific stages with one shared seeded Generator and no file I/O."""
+    """Return simulated tissue and independent reference tables without file I/O.
+
+    config contains model settings in micrometres and captured transcripts per
+    cell. One seeded generator drives all stages. Returned composition records
+    true transcript counts per square/type, not cell counts or inferred fractions.
+    """
     rng = np.random.default_rng(config.seed)
     grid = make_grid(
         config.field_width_um, config.field_height_um, config.square_size_um
@@ -82,6 +93,9 @@ def simulate(config):
         rng,
     )
     counts, composition = aggregate_transcripts(coordinates, transcripts, genes)
+    reference_counts, reference_labels = generate_reference(
+        programs, genes, means, config.reference_n_per_type, rng
+    )
     params = asdict(config)
     params.update(
         expression_programs=[programs[t].tolist() for t in config.cell_types],
@@ -91,7 +105,15 @@ def simulate(config):
         baseline=baseline.tolist(),
     )
     return SimulationResult(
-        coordinates, cells, transcripts, counts, composition, domains, params
+        coordinates,
+        cells,
+        transcripts,
+        counts,
+        composition,
+        domains,
+        params,
+        reference_counts,
+        reference_labels,
     )
 
 
@@ -99,12 +121,16 @@ def write_results(result, out_dir):
     """Export final tables, refusing to overwrite an existing output directory.
 
     Diagnostic cell/transcript tables are separate from aggregate ground truth.
-    This milestone does not yet produce reference/ or a full contract dataset.
+    Coordinates are in micrometres; counts and composition contain captured
+    transcripts. Export includes independent reference cells and contract metadata.
+    Validate the written directory before returning; raises ValueError on failure.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=False)
     truth = out_dir / "ground_truth"
     truth.mkdir()
+    reference = out_dir / "reference"
+    reference.mkdir()
     diagnostics = out_dir / "diagnostics"
     diagnostics.mkdir()
     for table, path in (
@@ -112,6 +138,8 @@ def write_results(result, out_dir):
         (result.counts, out_dir / "counts.csv"),
         (result.composition, truth / "composition.csv"),
         (result.domains, truth / "domains.csv"),
+        (result.reference_counts, reference / "reference_counts.csv"),
+        (result.reference_labels, reference / "reference_labels.csv"),
         (result.cells, diagnostics / "cells.csv"),
         (result.transcripts, diagnostics / "transcripts.csv"),
     ):
@@ -119,6 +147,39 @@ def write_results(result, out_dir):
     (truth / "params.json").write_text(
         json.dumps(result.params, indent=2) + "\n", encoding="utf-8"
     )
+
+    params = result.params
+    clean = git_clean()
+    commit = git_commit()
+    metadata = {
+        "contract_version": "1.0",
+        "square_size_um": params["square_size_um"],
+        "grid": {
+            "n_rows": int(params["field_height_um"] / params["square_size_um"]),
+            "n_cols": int(params["field_width_um"] / params["square_size_um"]),
+        },
+        "field_um": {
+            "width": params["field_width_um"],
+            "height": params["field_height_um"],
+        },
+        "n_squares": len(result.coordinates),
+        "n_genes": params["n_genes"],
+        "cell_types": list(params["cell_types"]),
+        "created_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "generator": {
+            "name": "tissue-sim",
+            "version": version("tissue-sim"),
+            "git_commit": (commit if clean else f"{commit}-dirty")
+            if commit
+            else "unavailable",
+            "git_clean": clean,
+        },
+        "random_seed": params["seed"],
+    }
+    (out_dir / "metadata.json").write_text(
+        json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
+    )
+    validate_dataset(out_dir)
 
 
 def run(config_path, raw_dir, out_dir):
@@ -131,9 +192,7 @@ def run(config_path, raw_dir, out_dir):
         raise FileExistsError(f"Choose a new output directory: {out_dir}")
     result = simulate(config)
     metadata = stamp(config_path, config.seed, manifest_path)
-    metadata["output_status"] = (
-        "partial: reference experiment and contract validator pending"
-    )
+    metadata["output_status"] = "validated: Data Contract 1.0"
     write_results(result, out_dir)
     (Path(out_dir) / "run_metadata.json").write_text(
         json.dumps(metadata, indent=2) + "\n", encoding="utf-8"

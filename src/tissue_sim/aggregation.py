@@ -8,7 +8,9 @@ def aggregate_transcripts(coordinates, transcripts, gene_names):
     """Return dense square-by-gene counts and sparse square/type composition.
 
     Preserve coordinate and gene order, including all empty squares and genes.
-    Composition has one positive count per square/type pair and no cell IDs.
+    Input transcripts are sampled simulation truth, not inference estimates.
+    Composition stores captured transcript counts (not cells or fractions),
+    with one positive count per square/type pair and no cell IDs.
     """
     ids = coordinates.square_id.tolist()
     if not transcripts.square_id.isin(ids).all():

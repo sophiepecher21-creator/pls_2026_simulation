@@ -88,3 +88,29 @@ above describe that historical milestone. Current acceptance criteria:
 Independent reference sampling and full contract metadata/validation remain
 pending; the current output is explicitly a partial dataset. See README for its
 layout. `diagnostics/` retains cell/transcript details outside aggregate ground truth.
+
+## Weeks 6 and 7 acceptance criteria (supersede partial-output status above)
+
+1. [known-answer test] `pytest --doctest-modules` runs at least two function
+   docstrings, covering grid geometry and transcript-to-square assignment.
+2. [schema / validation check] README inline file paths, local Markdown links
+   and file arguments in code blocks point to files that exist.
+3. [schema / validation check] `validate_dataset(path)` checks Contract 1.0
+   metadata, required files/columns, full unique grid coverage, coordinate units,
+   IDs and ordering, non-negative integer gene counts, gene alignment, labeled
+   reference coverage, ground truth, parameter consistency and exact per-square
+   transcript conservation. Missing sparse composition pairs mean zero.
+4. [integration test] The simulator writes every required contract file and calls
+   validation on that directory before returning success. Independent reference
+   cells are sampled from true programs with fresh random draws, never copied
+   from the tissue. Reference sample size is configurable (default 80 per type).
+5. [regression test] Six separate tests reject dataset_A through dataset_E for
+   their specific faults and accept dataset_OK silently. External fixtures remain
+   read-only and untracked; these six tests skip explicitly if the pack is absent.
+   Generated-fixture tests always exercise conformance and malformed inputs.
+6. [reproducibility test] Fixed seed/configuration reproduces numerical exports,
+   including the independent reference experiment. UTC timestamps may differ.
+   Metadata explicitly marks dirty Git provenance rather than implying clean code.
+7. [provenance check] The original reference files retain their recorded hashes.
+   The manifest additionally covers the new broken dataset pack. No supplied
+   input is altered; simulation verifies both packs before writing output.

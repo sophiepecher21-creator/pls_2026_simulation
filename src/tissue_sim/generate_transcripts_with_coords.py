@@ -93,7 +93,12 @@ def get_square_id(x, y, square_size):
     of the 2-µm bin it falls into.
 
     Uses floor division — same convention as make_grid_csv.py.
-    Example: x=5.3, square_size=2 -> col=2 -> sq_r???_c002
+    Returns the measurement square ID for a true sampled transcript position.
+
+    >>> get_square_id(5.3, 1.0, 2)
+    'sq_r000_c002'
+    >>> get_square_id(-0.1, 1.0, 2)
+    'sq_r000_c-01'
     """
     col = math.floor(x / square_size)
     row = math.floor(y / square_size)

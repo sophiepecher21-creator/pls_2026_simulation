@@ -20,6 +20,7 @@ class SimulationConfig:
     cell_types: tuple[str, ...] = ("type_a", "type_b")
     n_domains: int = 2
     domain_probabilities: tuple[tuple[float, ...], ...] = ((0.8, 0.2), (0.2, 0.8))
+    reference_n_per_type: int = 80
     n_genes: int = 100
     n_marker_genes: int = 10
     marker_boost: float = 10.0
@@ -28,12 +29,24 @@ class SimulationConfig:
 
     def __post_init__(self):
         """Reject malformed settings before simulation or random sampling."""
-        for name in ("seed", "n_cells", "n_domains", "n_genes", "n_marker_genes"):
+        for name in (
+            "seed",
+            "n_cells",
+            "n_domains",
+            "n_genes",
+            "n_marker_genes",
+            "reference_n_per_type",
+        ):
             value = getattr(self, name)
             if type(value) is not int or value < 0:
                 raise ValueError(f"{name} must be a nonnegative integer")
-        if min(self.n_cells, self.n_domains, self.n_genes) == 0:
-            raise ValueError("n_cells, n_domains and n_genes must be positive")
+        if (
+            min(self.n_cells, self.n_domains, self.n_genes, self.reference_n_per_type)
+            == 0
+        ):
+            raise ValueError(
+                "n_cells, n_domains, n_genes and reference_n_per_type must be positive"
+            )
         for name in (
             "field_width_um",
             "field_height_um",
@@ -51,6 +64,8 @@ class SimulationConfig:
                 raise ValueError(f"{name} must be a finite number")
             if value < 0 or (name != "baseline_spread" and value == 0):
                 raise ValueError(f"Invalid {name}")
+        if self.square_size_um != 2:
+            raise ValueError("Data Contract 1.0 requires square_size_um == 2")
         if self.marker_boost < 1:
             raise ValueError("marker_boost must be at least 1")
         for length in (self.field_width_um, self.field_height_um):
@@ -90,7 +105,12 @@ class SimulationConfig:
 
 
 def read_simulation_config(path):
-    """Load plain YAML values without evaluating Python code, then validate them."""
+    """Return validated SimulationConfig settings from a YAML file path.
+
+    Physical lengths are micrometres; means are captured transcripts per cell.
+    These are model inputs, not quantities estimated from reference data.
+    Only plain YAML values are accepted, never evaluated Python expressions.
+    """
     with Path(path).open(encoding="utf-8") as stream:
         values = yaml.safe_load(stream)
     if not isinstance(values, dict):

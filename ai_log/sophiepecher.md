@@ -55,3 +55,42 @@ our own future simulation outputs will be generated data.
   modular and redundant. The previous make_grid.py and write_coordinates.py files were 
   depricated; everything now lives in one file and can be run with one wrapper function main(). 
 - Decision: Kept the AI improvements, and also the oranigzational modifications that I made. 
+
+## Weeks 6 and 7 — 2026-11-02
+
+- Request: implement executable documentation, README path checks, the simulation
+  conformance checklist and validate_dataset(path), using both weekly handouts
+  and Data Contract 1.0; install the supplied broken dataset pack locally.
+- Codex produced: two function doctests, clarified units/provenance in touched
+  public docstrings, a shorter README, automated path checks, a validator with
+  actionable ValueError messages, independently sampled reference cells, full
+  contract metadata, validation at export, and generated-fixture and six course
+  dataset regression tests. Added the provided contract as a local documentation
+  reference. No course dataset is committed.
+- How it was checked: pytest --doctest-modules: 170 passed; Ruff passed. The original
+  reference dataset validates silently. The five faulty datasets fail for their
+  specific defects; dataset_OK is silent. A default end-to-end run preserves the
+  earlier 25,600 squares, 20 tissue cells and 613 transcripts, and now adds 80
+  independent reference cells per type. All 10 original raw-file hashes remain
+  unchanged; the updated manifest additionally fingerprints the 48 pack files.
+- How it was wrong: removed trailing whitespace in a doctest's
+  expected output; specified zip truncation explicitly in mismatched-order error
+  reporting; excluded contract timestamps from byte-for-byte repeat comparisons.
+- Decision: changes prepared and verified locally for team review and no commit or push made by this task.
+
+
+### Week 7 notebook alignment — 2026-11-02
+
+- Prompt: validate_dataset(path)should be based on the supplied
+  week07_notebook.ipynb. Reorganized it around the notebook's read_csv,
+  check_counts, check_ids_match and check_composition_sums functions, using
+  csv.DictReader and explicit dictionary/row iteration instead of pandas.
+- What it produced: Kept the full contract extensions for metadata, geometry, independent
+  reference tables, sparse composition representation, domains and parameters.
+  Required files are checked before inspecting their contents. Invalid input
+  continues to raise actionable ValueError messages, preserving the package API. Added one focused regression test reproducing the notebook's partial 3x3
+  fixture, explicit zero composition rows, negative count, extra square ID and
+  the 12-versus-9 composition mismatch. Helpers accept the valid partial fixture;
+  full validation still requires every contract file and full metadata.
+- How it was checked: Verified the existing tests against the refactor and the new notebook example.
+- Decision: implemented

@@ -40,6 +40,8 @@ def test_pipeline_reproducible_and_conserves_counts():
         "counts",
         "composition",
         "domains",
+        "reference_counts",
+        "reference_labels",
     ):
         pd.testing.assert_frame_equal(getattr(a, name), getattr(b, name))
     assert len(a.coordinates) == 64
@@ -119,6 +121,9 @@ def test_run_exports_and_refuses_overwrite(tmp_path):
     config, raw, out = prepare_run(tmp_path)
     run(config, raw, out)
     for f in [
+        "metadata.json",
+        "reference/reference_counts.csv",
+        "reference/reference_labels.csv",
         "coordinates.csv",
         "counts.csv",
         "ground_truth/composition.csv",
@@ -136,7 +141,7 @@ def test_run_exports_and_refuses_overwrite(tmp_path):
     other = tmp_path / "repeat"
     run(config, raw, other)
     for path in out.rglob("*"):
-        if path.is_file() and path.name != "run_metadata.json":
+        if path.is_file() and path.name not in {"run_metadata.json", "metadata.json"}:
             assert path.read_bytes() == (other / path.relative_to(out)).read_bytes()
 
 

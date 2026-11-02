@@ -34,3 +34,6 @@ domain_probabilities:
 
 # Captured transcripts per whole cell; follows cell_types order.
 mean_transcripts_per_type: [20.0, 40.0]
+
+# Independent profiled reference cells per type; contract recommends at least ~50.
+reference_n_per_type: 80
