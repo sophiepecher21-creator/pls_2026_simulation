@@ -10,7 +10,33 @@ before the run succeeds. File formats are defined in `docs/data_contract.pdf`.
 
 ## Install
 
-From the repository root, with conda installed:
+### Get the project files
+Before installing, download or clone this repository onto your computer.
+
+- **Download ZIP:** On the repository page, select **Code → Download ZIP**, then extract the downloaded archive.
+- **Git:** Clone the repository using its repository URL.
+
+Open a terminal and navigate into the extracted or cloned project folder:
+
+```bash
+cd path/to/pls_2026_simulation
+```
+
+Replace `path/to/pls_2026_simulation` with the location of the folder on your computer. If you downloaded a ZIP, the extracted folder may have a suffix such as `-main`.
+
+Check that this folder contains `environment.yml` and `pyproject.toml` or `setup.py`.
+
+### Install the environment and project
+
+Run each command separately. If a command fails, resolve the error before continuing.
+
+```bash
+conda env create -f environment.yml
+conda activate pls2026
+python -m pip install -e .
+```
+
+After activation, your terminal prompt should show `(pls2026)`. Run the remaining commands in this README from the project folder unless instructed otherwise.
 
 ```bash
 conda env create -f environment.yml
