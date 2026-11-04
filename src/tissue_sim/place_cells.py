@@ -3,7 +3,6 @@ import csv
 from pathlib import Path
 
 import numpy as np
-import yaml
 from scipy.spatial import cKDTree
 
 DEFAULT_CONFIG = "config/default.yaml"
@@ -15,21 +14,6 @@ CELL_COLUMNS = ["cell_id", "center_x_um", "center_y_um", "radius_um"]
 # ---------------------------------------------------------------------------
 # config + csv helpers
 # ---------------------------------------------------------------------------
-
-def load_config(config_path=DEFAULT_CONFIG):
-    """Load the YAML config file into a dict."""
-    config_path = Path(config_path)
-    if not config_path.is_file():
-        raise FileNotFoundError(f"Config not found: {config_path}")
-    with config_path.open(encoding="utf-8") as fh:
-        return yaml.safe_load(fh) or {}
-
-
-def _require(config, key):
-    value = config.get(key)
-    if value is None:
-        raise KeyError(f"'{key}' is missing in the config file.")
-    return value
 
 
 def read_coordinates(path):
@@ -44,7 +28,9 @@ def read_coordinates(path):
         reader = csv.DictReader(fh)
         missing = {"x_um", "y_um"} - set(reader.fieldnames or [])
         if missing:
-            raise ValueError(f"{path} is missing column(s): {', '.join(sorted(missing))}")
+            raise ValueError(
+                f"{path} is missing column(s): {', '.join(sorted(missing))}"
+            )
         return list(reader)
 
 
@@ -64,28 +50,21 @@ def _write_csv(path, rows):
 # cell placement
 # ---------------------------------------------------------------------------
 
-def _number_of_cells(config):
-    """Number of cells, read from 'n_cells' in the config file."""
-    n_cells = int(_require(config, "n_cells"))
-    if n_cells < 1:
-        raise ValueError("The number of cells must be at least 1.")
-    return n_cells
 
-
-def place_cells(coordinates, config_path=DEFAULT_CONFIG):
+def place_cells(coordinates, config, rng):
     """
     Place round, non-overlapping cells on the field and label the grid squares.
-    All parameters are read from the config file:
+    Parameters are supplied by a SimulationConfig object:
 
         field_width_um     : width of the whole field in um (x from 0 to width)
         field_height_um    : height of the whole field in um (y from 0 to height)
         cell_radius_um     : radius of each round cell in um
         n_cells            : number of cells to place
         distribution_shape : "uniform", "gaussian" or "clustered"
-        seed               : integer or null (null = different every run)
+        rng                : shared NumPy random generator supplied by the caller
 
     coordinates : list of dicts (one per measurement square) with the columns
-                  "x_um" and "y_um", e.g. from read_coordinates().
+                  "x_um" and "y_um", with numeric values. config is a SimulationConfig; rng is the shared Generator.
 
     Returns (records, cells):
       records : copy of the rows (all original columns kept, e.g. square_id,
@@ -98,17 +77,13 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
     if not coordinates:
         raise ValueError("No coordinates in input.")
 
-    config = load_config(config_path)
-    field_width_um = float(_require(config, "field_width_um"))
-    field_height_um = float(_require(config, "field_height_um"))
-    cell_radius = float(_require(config, "cell_radius_um"))
-    n_cells = _number_of_cells(config)
-    distribution_shape = str(_require(config, "distribution_shape"))
+    field_width_um = config.field_width_um
+    field_height_um = config.field_height_um
+    cell_radius = config.cell_radius_um
+    n_cells = config.n_cells
+    distribution_shape = config.distribution_shape
     if distribution_shape not in ("uniform", "gaussian", "clustered"):
         raise ValueError(f"Unknown distribution_shape: {distribution_shape!r}")
-    seed = config.get("seed")
-
-    rng = np.random.default_rng(seed)
 
     records = [dict(r) for r in coordinates]
     pts = np.array([[float(r["x_um"]), float(r["y_um"])] for r in records])
@@ -124,8 +99,9 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
     cx, cy = xmin + width / 2, ymin + height / 2
     if distribution_shape == "clustered":
         k = max(2, int(np.sqrt(n_cells) / 2))
-        cluster_centers = np.column_stack([
-            rng.uniform(xmin, xmax, k), rng.uniform(ymin, ymax, k)])
+        cluster_centers = np.column_stack(
+            [rng.uniform(xmin, xmax, k), rng.uniform(ymin, ymax, k)]
+        )
 
     # --- rejection sampling: draw a candidate center, keep it only if it lies
     #     inside the field and does not overlap an already placed cell ---------
@@ -144,7 +120,10 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
 
         if not (xmin <= c[0] <= xmax and ymin <= c[1] <= ymax):
             continue
-        if centers and np.min(np.linalg.norm(np.array(centers) - c, axis=1)) < 2 * cell_radius:
+        if (
+            centers
+            and np.min(np.linalg.norm(np.array(centers) - c, axis=1)) < 2 * cell_radius
+        ):
             continue
         centers.append(c)
 
@@ -156,7 +135,7 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
         cell_ids[inside] = nearest[inside] + 1  # number cells 1..N
 
     # --- write the cell info into every row (empty for squares outside) -----
-    for record, cell_id in zip(records, cell_ids):
+    for record, cell_id in zip(records, cell_ids, strict=True):
         cell_id = int(cell_id)
         record["cell_id"] = cell_id
         if cell_id:
@@ -185,25 +164,42 @@ def place_cells(coordinates, config_path=DEFAULT_CONFIG):
 # command line interface
 # ---------------------------------------------------------------------------
 
+
 def main():
+    """Run the standalone cell-placement command on a grid CSV."""
     p = argparse.ArgumentParser(
         description="Place round cells on the measurement grid. The input CSV "
-                    "is updated in place (columns: " + ", ".join(CELL_COLUMNS) + ").")
-    p.add_argument("--input", required=True, help="grid CSV (coordinates.csv), edited in place")
-    p.add_argument("--config", default=DEFAULT_CONFIG,
-                   help=f"YAML config file (default: {DEFAULT_CONFIG})")
+        "is updated in place (columns: " + ", ".join(CELL_COLUMNS) + ")."
+    )
+    p.add_argument(
+        "--input", required=True, help="grid CSV (coordinates.csv), edited in place"
+    )
+    p.add_argument(
+        "--config",
+        default=DEFAULT_CONFIG,
+        help=f"YAML config file (default: {DEFAULT_CONFIG})",
+    )
     args = p.parse_args()
 
+    from tissue_sim.configuration import read_simulation_config
+
+    config = read_simulation_config(args.config)
     coordinates = read_coordinates(args.input)
-    records, cells = place_cells(coordinates, args.config)
+    records, cells = place_cells(
+        coordinates, config, np.random.default_rng(config.seed)
+    )
     _write_csv(args.input, records)
 
-    requested = _number_of_cells(load_config(args.config))
+    requested = config.n_cells
     if len(cells) < requested:
-        print(f"Warning: only placed {len(cells)} of {requested} cells "
-              f"(field too crowded for the cell radius).")
+        print(
+            f"Warning: only placed {len(cells)} of {requested} cells "
+            f"(field too crowded for the cell radius)."
+        )
     print(f"cells placed: {len(cells)}")
-    print(f"squares inside a cell: {sum(1 for r in records if r['cell_id'])} of {len(records)}")
+    print(
+        f"squares inside a cell: {sum(1 for r in records if r['cell_id'])} of {len(records)}"
+    )
     print(f"updated {args.input}")
 
 

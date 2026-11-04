@@ -48,7 +48,14 @@ def make_grid(field_width_um, field_height_um, square_size_um):
     """Return measurement-square IDs, indices, and centre coordinates.
 
     Field dimensions must be positive, finite multiples of square_size_um.
-    Row and column indices start at zero.
+    Row and column indices start at zero; all physical lengths are micrometres.
+    This is instrument geometry, independent of sampled tissue or inference.
+
+    >>> grid = make_grid(4, 2, 2)
+    >>> list(grid)
+    ['sq_r000_c000', 'sq_r000_c001']
+    >>> grid['sq_r000_c001']
+    {'array_row': 0, 'array_col': 1, 'x_um': 3.0, 'y_um': 1.0}
     """
     dimensions = (field_width_um, field_height_um, square_size_um)
 

@@ -1,8 +1,12 @@
 import numpy as np
 import pytest
-from prometheus_client.utils import INF
 
-from tissue_sim.expression_programs import *
+from tissue_sim.expression_programs import (
+    make_baseline_distribution,
+    boost_marker_genes,
+    generate_marker_genes,
+    generate_cell_type_programs,
+)
 
 
 def test_baseline_probabilities_sum_to_one():
@@ -134,12 +138,8 @@ def test_marker_gene_selection_is_reproducible():
     rng1 = np.random.default_rng(42)
     rng2 = np.random.default_rng(42)
 
-    markers1 = generate_marker_genes(
-        ["type_a", "type_b"], 10, 3, rng1
-    )
-    markers2 = generate_marker_genes(
-        ["type_a", "type_b"], 10, 3, rng2
-    )
+    markers1 = generate_marker_genes(["type_a", "type_b"], 10, 3, rng1)
+    markers2 = generate_marker_genes(["type_a", "type_b"], 10, 3, rng2)
 
     for cell_type in markers1:
         np.testing.assert_array_equal(
@@ -159,6 +159,7 @@ def test_invalid_number_of_marker_genes_is_rejected(n_marker_genes):
             n_marker_genes=n_marker_genes,
             random_generator=rng,
         )
+
 
 def test_not_enough_genes_for_non_overlapping_markers():
     rng = np.random.default_rng(42)
