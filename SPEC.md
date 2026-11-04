@@ -40,6 +40,20 @@ Directory layout produced by the simulator:
 
 ## Acceptance criteria
 
+The table maps the current Weeks 6–7 acceptance criteria to existing checks.
+Coverage gaps are noted explicitly.
+
+| Claim | Kind of check | Test file and function |
+| --- | --- | --- |
+| 1. At least two function docstrings cover grid geometry and transcript-to-square assignment. | Known-answer / doctest | `src/tissue_sim/make_grid_csv.py::make_grid`; `src/tissue_sim/generate_transcripts_with_coords.py::get_square_id`. Run with `pytest --doctest-modules`. |
+| 2. README file paths, local links and code-block file arguments exist. | Schema / validation | In `tests/test_documentation.py`: `test_readme_paths_exist`, `test_path_checker_known_answer`, `test_checker_catches_command_and_link_paths`. |
+| 3. Dataset validation enforces Contract 1.0, valid tables, parameter consistency and transcript conservation; absent composition pairs mean zero. | Schema / validation | In `tests/test_validate.py`: `test_generated_dataset_conforms`, `test_empty_composition_is_zero_not_missing`, `test_invalid_json_values`, `test_invalid_tables`, `test_missing_and_malformed_json`, `test_notebook_layer_checks`. These exercise conformance and selected malformed inputs. |
+| 4. Simulation exports all required files, validates output and independently samples configurable reference cells. | Integration / known-answer | In `tests/test_smoke.py`: `test_run_exports_and_refuses_overwrite`. In `tests/test_validate.py`: `test_generated_dataset_conforms`, `test_reference_known_answer_and_fresh_sampling`. Direct checks of automatic validation before success, independence from tissue and configurable reference sample size remain to be confirmed. |
+| 5. Six separate tests reject dataset_A–E for their specific faults and silently accept dataset_OK. External tests skip if the pack is absent; generated-fixture checks run independently. | Regression | In `tests/test_validate_pack.py`: `test_dataset_A`, `test_dataset_B`, `test_dataset_C`, `test_dataset_D`, `test_dataset_E`, `test_dataset_OK`. In `tests/test_validate.py`: `test_generated_dataset_conforms`, `test_invalid_json_values`, `test_invalid_tables`, `test_missing_and_malformed_json`. |
+| 6. Fixed configuration and seed reproduce numerical exports, including reference data; metadata records dirty Git provenance. | Reproducibility / provenance | In `tests/test_smoke.py`: `test_pipeline_reproducible_and_conserves_counts`, `test_run_exports_and_refuses_overwrite`. A direct check of dirty Git metadata remains to be confirmed. |
+| 7. Supplied inputs retain their hashes, both packs are covered by the manifest and verification precedes output. | Provenance | In `tests/test_provenance.py`: `test_untouched_directory`, `test_modified_file`, `test_missing_and_added_files`, `test_changed_input_stops_processing`. In `tests/test_smoke.py`: `test_changed_raw_data_prevents_output`. These use temporary inputs; actual supplied-pack hashes and manifest coverage require a separate check. |
+
+
 ## Week 3 acceptance criteria
 
 1. [smoke test] The current toy runs end to end and writes toy_cells.csv
