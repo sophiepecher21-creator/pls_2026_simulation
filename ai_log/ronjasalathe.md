@@ -67,3 +67,13 @@
 - **Decision:** Edited and accepted. Updating the original CSV preserved the existing data instead of copying it, and providing the added annotation for downstream use.
 
 ---
+
+## 28.10.2026 — Simplifying domain tests file
+
+- **Prompt / ask:** Review `domains.py` and `test_domains.py`, then simplify the test file. 
+- **What it produced:** A shorter file with 11 tests covering domain assignment, cell extraction, sampling, reproducibility, and DataFrame integration.
+- **How you checked it:** Ran both `PYTHONPATH=src python -m pytest -q tests/test_domains.py` (11 tests passed, 100 %) and `PYTHONPATH=src python -m pytest -q test` (54 passed, 100 %).
+- **What was wrong:** The first proposal removed too many useful checks and included unnecessary  CSV tests. Both points were corrected.
+- **Decision:** Accepted the revised proposal because it checks the main functions without extensively repeating upstream input validation.
+
+---
