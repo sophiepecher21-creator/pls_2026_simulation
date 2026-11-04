@@ -31,6 +31,27 @@
 - What was wrong: Some highly ranked genes were not markers. These genes had high baseline probabilities and were highly expressed in both cell types.
 - Decision: Accepted the results because marker status is determined by the selected marker sets, not by expression level alone. High-probability non-marker genes are consistent with the model because they arise from the shared baseline distribution rather than being specifically boosted for one cell type.
 
+## 04-11-2026 — Raw data verification
+- Prompt / question: My simulation failed because the raw-data verification detected unexpected `.DS_Store` files.
+- What it produced: AI explained that these files are automatically created by macOS and suggested removing them.
+- How I checked it: I removed the `.DS_Store` files from `data/raw` and ran the simulation again.
+- What was wrong: The additional files were not included in the raw-data manifest.
+- Decision: Accepted the suggestion.
+
+## 04-11-2026 — Reproducibility test
+- Prompt / question: I needed to implement a test to check whether the same seed produces identical simulation outputs and a different seed produces different results.
+- What it produced: AI suggested a pytest test using `tmp_path`, running the simulation three times and comparing the generated files.
+- How I checked it: I ran `python -m pytest tests/test_reproducibility.py -v`. The test passed after I adjusted the comparison.
+- What was wrong: The first version failed because `metadata.json` and `run_metadata.json` contain timestamps that change between runs. I also needed to make sure the different-seed test checks actual simulation results, not just the seed stored in metadata.
+- Decision: Edited the test to ignore timestamp fields when comparing runs with the same seed. For different seeds, I excluded metadata and parameter files and checked that at least one simulated data file differs. Kept the actual timestamps in the output.
+
+## 04-11-2026 — Changing simulation parameters
+- Prompt / question: I wanted to check whether our cell radius, number of cells and number of transcripts were reasonable based on the spatial transcriptomics course material.
+- What it produced: AI helped me calculate cell size, tissue coverage and expected transcript counts for different parameter values.
+- How I checked it: I tried different parameter values, ran the simulation and checked the generated `counts.csv` using pandas. With 300 cells and `mean_transcripts_per_type: [600.0, 1200.0]`, the simulation produced 264,382 transcripts across 25,600 squares. The mean was 10.33, median 8, and 38.18% of squares were empty.
+- What was wrong: The original radius of 15 µm meant a diameter of 30 µm, which was too large compared to the typical cell diameter of 10–20 µm mentioned in the course material. Also, 1,000 cells were too many for the grid with non-overlapping cells, and the original transcript counts were very low compared to the example of approximately 11 median transcripts per 2 µm square.
+- Decision: Changed `cell_radius_um` to 7.5, `n_cells` to 300 and `mean_transcripts_per_type` to `[600.0, 1200.0]`. These values seemed like a reasonable starting point for the simulation, although further testing may be needed.
+
 ## <date> — <what I was building>
 - Prompt / question: <what I asked the AI or wrote myself>
 - What it produced: <a line or two>
