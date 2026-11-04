@@ -68,3 +68,49 @@ generated artifact.
 Input: When we input information to create a square of cells at 2-D positions, with spatial domains, cell types that are dominant in certain domains, and some genes/marker genes given the spatial constraints of a Visium grid...
 
 Expected output: The output should, at minimum, be able to bin output to 8 µm and 16 µm, four 8 µm bins sum exactly to their 16 µm bin, gene by gene. Every (row, col) appears exactly once; µm coordinates match the indices. 
+
+
+## Week 6 connected pipeline
+
+The Week 3 toy is superseded by the connected pipeline. The original criteria
+above describe that historical milestone. Current acceptance criteria:
+
+1. A single simulation command connects grid, placement, domains, expression,
+   transcript generation and aggregation through in-memory objects.
+2. Repeated runs with the same configuration and seed reproduce numerical tables.
+3. Gene counts and square/type composition both conserve in-field transcripts;
+   empty squares remain in the grid and gene matrix.
+4. A known-answer aggregation combines contributions across cells, and exact
+   8-to-16 µm aggregation holds gene by gene.
+5. Unsafe YAML constructors and malformed settings are rejected before sampling.
+6. Raw-data verification still precedes output; existing result directories are protected.
+
+Independent reference sampling and full contract metadata/validation remain
+pending; the current output is explicitly a partial dataset. See README for its
+layout. `diagnostics/` retains cell/transcript details outside aggregate ground truth.
+
+## Weeks 6 and 7 acceptance criteria (supersede partial-output status above)
+
+1. [known-answer test] `pytest --doctest-modules` runs at least two function
+   docstrings, covering grid geometry and transcript-to-square assignment.
+2. [schema / validation check] README inline file paths, local Markdown links
+   and file arguments in code blocks point to files that exist.
+3. [schema / validation check] `validate_dataset(path)` checks Contract 1.0
+   metadata, required files/columns, full unique grid coverage, coordinate units,
+   IDs and ordering, non-negative integer gene counts, gene alignment, labeled
+   reference coverage, ground truth, parameter consistency and exact per-square
+   transcript conservation. Missing sparse composition pairs mean zero.
+4. [integration test] The simulator writes every required contract file and calls
+   validation on that directory before returning success. Independent reference
+   cells are sampled from true programs with fresh random draws, never copied
+   from the tissue. Reference sample size is configurable (default 80 per type).
+5. [regression test] Six separate tests reject dataset_A through dataset_E for
+   their specific faults and accept dataset_OK silently. External fixtures remain
+   read-only and untracked; these six tests skip explicitly if the pack is absent.
+   Generated-fixture tests always exercise conformance and malformed inputs.
+6. [reproducibility test] Fixed seed/configuration reproduces numerical exports,
+   including the independent reference experiment. UTC timestamps may differ.
+   Metadata explicitly marks dirty Git provenance rather than implying clean code.
+7. [provenance check] The original reference files retain their recorded hashes.
+   The manifest additionally covers the new broken dataset pack. No supplied
+   input is altered; simulation verifies both packs before writing output.

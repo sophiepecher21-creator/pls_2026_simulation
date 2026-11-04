@@ -111,7 +111,12 @@ def git_clean():
 
 
 def stamp(config_path, seed, manifest_path):
-    """Return a provenance record for one run."""
+    """Return code/configuration provenance for a seeded simulation run.
+
+    config_path and manifest_path name input files; seed is the recorded model
+    random seed. The record includes a local timestamp and input-manifest hash,
+    distinct from the UTC timestamp in the exported contract metadata.
+    """
     return {
         "git_commit": git_commit(),
         "git_clean": git_clean(),

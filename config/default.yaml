@@ -11,6 +11,29 @@ n_cells: 20
 field_width_um: 320.0
 field_height_um: 320.0
 square_size_um: 2.0
+
+# Expression programs
+n_genes: 100 # Total number of distinct genes
+n_marker_genes: 10 # Number of marker genes per cell type
+marker_boost: 10.0 # Multiplicative factor applied to marker genes
+baseline_spread: 1.0 # Standard deviation of the log-normal distribution
 cell_types:
   - type_a
   - type_b
+
+
+# Cell placement (place_cells)
+cell_radius_um: 15.0            # radius of each round cell; placeholder dont make it negative 
+distribution_shape: uniform     # uniform | gaussian | clustered
+
+# Spatial domains: rows are domains; columns follow cell_types order.
+n_domains: 2
+domain_probabilities:
+  - [0.8, 0.2]
+  - [0.2, 0.8]
+
+# Captured transcripts per whole cell; follows cell_types order.
+mean_transcripts_per_type: [20.0, 40.0]
+
+# Independent profiled reference cells per type; contract recommends at least ~50.
+reference_n_per_type: 80
