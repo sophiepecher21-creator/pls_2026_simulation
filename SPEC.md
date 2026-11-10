@@ -128,3 +128,28 @@ layout. `diagnostics/` retains cell/transcript details outside aggregate ground 
 7. [provenance check] The original reference files retain their recorded hashes.
    The manifest additionally covers the new broken dataset pack. No supplied
    input is altered; simulation verifies both packs before writing output.
+## Week 8 simulation checks
+
+These checks extend the Weeks 6–7 criterion-to-check table above.
+They use small generated inputs and require no external course datasets.
+
+| Claim | Kind of check | Test file and function |
+| --- | --- | --- |
+| Repeating a configuration and seed reproduces every simulation table and parameter, for seeds 0, 42 and 20260101. | Reproducibility | `tests/test_simulation_invariants.py::test_same_seed_reproduces_all_simulation_tables` |
+| The seed controls sampled tissue geometry: seeds 42 and 43 produce different cell positions. | Reproducibility | `tests/test_simulation_invariants.py::test_seed_controls_random_sampling` |
+| Aggregation counts every transcript once in the correct square/gene and square/type pair, preserving coordinate order, gene order, empty squares and unused genes. | Known-answer | `tests/test_simulation_invariants.py::test_aggregation_preserves_exact_gene_and_type_counts` |
+| Duplicating every input transcript exactly doubles gene counts and square/type composition, preserving empty squares. | Metamorphic | `tests/test_simulation_invariants.py::test_duplicating_transcripts_doubles_both_aggregates` |
+| Four adjacent 8 µm bins sum exactly to their corresponding 16 µm bin, gene by gene, across a 32 × 48 µm field. Asymmetric expected counts also detect spatial misassignment. | Property / known-answer | `tests/test_simulation_invariants.py::test_four_8um_bins_sum_to_each_16um_bin_gene_by_gene` |
+
+The spatial invariant test bins the production aggregation output inside the
+test; it does not establish the correctness of a separate production rebinning
+API.
+
+### Mutation experiment
+
+Run `python scripts/check_week08_mutations.py` from the repository root.
+The script runs the seven new test cases against disposable source copies.
+All three attempted mutations were caught: negative accumulation, reversed
+square mapping, and ignoring the configured seed. No mutants survived among
+these three experiments. Details and failing test names are recorded in
+`docs/week08_mutations.md`.

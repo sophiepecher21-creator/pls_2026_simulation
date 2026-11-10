@@ -24,7 +24,7 @@ cd path/to/pls_2026_simulation
 
 Replace `path/to/pls_2026_simulation` with the location of the folder on your computer. If you downloaded a ZIP, the extracted folder may have a suffix such as `-main`.
 
-Check that this folder contains `environment.yml` and `pyproject.toml` or `setup.py`.
+Check that this folder contains `environment.yml` and `pyproject.toml`.
 
 ### Install the environment and project
 
