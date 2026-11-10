@@ -12,6 +12,7 @@ from tissue_sim.generate_transcripts_with_coords import (
     get_square_id,
     load_expression_programs,
     place_transcripts_in_disk,
+    write_csv,
 )
 
 
@@ -361,3 +362,205 @@ def test_input_dataframe_is_not_modified(two_cell_dataframe, two_genes_two_types
         np.random.default_rng(0)
     )
     pd.testing.assert_frame_equal(two_cell_dataframe, original)
+
+
+# =============================================================================
+# Tests for write_csv()
+# =============================================================================
+
+def test_write_csv_creates_file(tmp_path):
+    """write_csv creates a file at the given path."""
+    path = tmp_path / "out.csv"
+    rows = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
+    write_csv(path, rows, ["a", "b"])
+    assert path.is_file()
+
+
+def test_write_csv_correct_content(tmp_path):
+    """The written CSV has the correct header and rows."""
+    path = tmp_path / "out.csv"
+    rows = [{"name": "alice", "score": 10}, {"name": "bob", "score": 20}]
+    write_csv(path, rows, ["name", "score"])
+
+    import csv
+    with open(path, encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        written = list(reader)
+
+    assert written[0] == {"name": "alice", "score": "10"}
+    assert written[1] == {"name": "bob",   "score": "20"}
+
+
+def test_write_csv_column_order(tmp_path):
+    """Columns appear in the order specified by fieldnames."""
+    path = tmp_path / "out.csv"
+    rows = [{"b": 2, "a": 1}]
+    write_csv(path, rows, ["a", "b"])
+
+    first_line = path.read_text(encoding="utf-8").splitlines()[0]
+    assert first_line == "a,b"
+
+
+def test_write_csv_empty_rows(tmp_path):
+    """Writing an empty list produces a file with only the header."""
+    path = tmp_path / "out.csv"
+    write_csv(path, [], ["x", "y"])
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    assert lines == ["x,y"]
+
+
+def test_write_csv_creates_parent_directory(tmp_path):
+    """write_csv creates any missing parent directories."""
+    path = tmp_path / "subdir" / "nested" / "out.csv"
+    write_csv(path, [{"a": 1}], ["a"])
+    assert path.is_file()
+
+
+def test_write_csv_no_tmp_file_left_behind(tmp_path):
+    """After a successful write, no .tmp file should remain."""
+    path = tmp_path / "out.csv"
+    write_csv(path, [{"a": 1}], ["a"])
+    tmp = path.with_suffix(".tmp")
+    assert not tmp.exists()
+
+
+def test_write_csv_overwrites_existing_file(tmp_path):
+    """Calling write_csv twice on the same path overwrites the first file."""
+    path = tmp_path / "out.csv"
+    write_csv(path, [{"a": 1}], ["a"])
+    write_csv(path, [{"a": 99}], ["a"])
+
+    import csv
+    with open(path, encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert rows[0]["a"] == "99"
+
+
+# =============================================================================
+# Tests for main() — CLI entry point
+# =============================================================================
+
+def _make_cli_inputs(tmp_path):
+    """
+    Write the three input files that main() expects and return their paths.
+    Uses a 10x10 grid (20x20 µm field, 2 µm squares) with one cell.
+    """
+    import csv as csv_mod
+
+    # coordinates.csv — 10x10 grid, one cell at center
+    coords_path = tmp_path / "coordinates.csv"
+    rows = []
+    for r in range(10):
+        for c in range(10):
+            rows.append({
+                "square_id": f"sq_r{r:03d}_c{c:03d}",
+                "array_row": r,
+                "array_col": c,
+                "x_um": (c + 0.5) * 2,
+                "y_um": (r + 0.5) * 2,
+            })
+    with open(coords_path, "w", newline="", encoding="utf-8") as f:
+        w = csv_mod.DictWriter(f, fieldnames=list(rows[0].keys()))
+        w.writeheader()
+        w.writerows(rows)
+
+    # cells.csv — one cell of type_a at the center of the field
+    cells_path = tmp_path / "cells.csv"
+    with open(cells_path, "w", newline="", encoding="utf-8") as f:
+        w = csv_mod.DictWriter(f, fieldnames=[
+            "cell_id", "cell_type", "center_x_um", "center_y_um", "radius_um"
+        ])
+        w.writeheader()
+        w.writerow({
+            "cell_id": 1,
+            "cell_type": "type_a",
+            "center_x_um": 10.0,
+            "center_y_um": 10.0,
+            "radius_um": 3.0,
+        })
+
+    # expression_programs.json
+    programs_path = tmp_path / "programs.json"
+    programs_path.write_text(json.dumps({
+        "type_a": [0.6, 0.4],
+        "gene_names": ["GENE_0001", "GENE_0002"],
+        "mean_transcripts": {"type_a": 10},
+    }), encoding="utf-8")
+
+    return coords_path, cells_path, programs_path
+
+
+def test_main_creates_output_files(tmp_path):
+    """main() must create transcripts.csv and composition.csv in --out-dir."""
+    import sys
+    from tissue_sim.generate_transcripts_with_coords import main
+
+    coords, cells, programs = _make_cli_inputs(tmp_path)
+    out_dir = tmp_path / "out"
+
+    sys.argv = [
+        "generate_transcripts_with_coords.py",
+        "--coordinates", str(coords),
+        "--cells",       str(cells),
+        "--programs",    str(programs),
+        "--out-dir",     str(out_dir),
+        "--seed",        "42",
+    ]
+    main()
+
+    assert (out_dir / "transcripts.csv").is_file()
+    assert (out_dir / "composition.csv").is_file()
+
+
+def test_main_transcripts_have_correct_columns(tmp_path):
+    """transcripts.csv written by main() must have the expected columns."""
+    import sys
+    import csv as csv_mod
+    from tissue_sim.generate_transcripts_with_coords import main
+
+    coords, cells, programs = _make_cli_inputs(tmp_path)
+    out_dir = tmp_path / "out"
+
+    sys.argv = [
+        "generate_transcripts_with_coords.py",
+        "--coordinates", str(coords),
+        "--cells",       str(cells),
+        "--programs",    str(programs),
+        "--out-dir",     str(out_dir),
+        "--seed",        "0",
+    ]
+    main()
+
+    with open(out_dir / "transcripts.csv", encoding="utf-8", newline="") as f:
+        reader = csv_mod.DictReader(f)
+        expected = {"transcript_id", "square_id", "cell_id", "cell_type", "gene", "x_um", "y_um"}
+        assert expected.issubset(set(reader.fieldnames))
+
+
+def test_main_raises_on_missing_cell_columns(tmp_path):
+    """main() must raise ValueError if cells CSV is missing required columns."""
+    import sys
+    import csv as csv_mod
+    from tissue_sim.generate_transcripts_with_coords import main
+
+    coords, _, programs = _make_cli_inputs(tmp_path)
+
+    # write a cells.csv that is missing center_x_um etc.
+    bad_cells = tmp_path / "bad_cells.csv"
+    with open(bad_cells, "w", newline="", encoding="utf-8") as f:
+        w = csv_mod.DictWriter(f, fieldnames=["cell_id", "cell_type"])
+        w.writeheader()
+        w.writerow({"cell_id": 1, "cell_type": "type_a"})
+
+    out_dir = tmp_path / "out"
+    sys.argv = [
+        "generate_transcripts_with_coords.py",
+        "--coordinates", str(coords),
+        "--cells",       str(bad_cells),
+        "--programs",    str(programs),
+        "--out-dir",     str(out_dir),
+        "--seed",        "0",
+    ]
+    with pytest.raises(ValueError, match="--cells"):
+        main()
