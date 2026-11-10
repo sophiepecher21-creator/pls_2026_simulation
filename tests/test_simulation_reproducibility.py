@@ -1,5 +1,6 @@
 from pathlib import Path
 import yaml
+import json
 
 from tissue_sim.simulation import run
 
@@ -15,8 +16,6 @@ def get_files(directory):
         for path in directory.rglob("*")
         if path.is_file()
     }
-
-import json
 
 
 def comparable_content(filename, content):
@@ -34,6 +33,7 @@ def comparable_content(filename, content):
         metadata.pop("created", None)
 
     return json.dumps(metadata, sort_keys=True).encode("utf-8")
+
 
 def test_reproducibility(tmp_path):
     # 1. Run twice with the same seed
@@ -86,4 +86,3 @@ def test_reproducibility(tmp_path):
         files1[filename] != files3[filename]
         for filename in simulation_files
     ), "Different seeds produced identical simulation outputs"
-
