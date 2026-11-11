@@ -310,8 +310,12 @@ def test_different_seeds_give_different_results(one_cell_dataframe, two_genes_tw
 
 def test_transcript_count_is_poisson_distributed():
     """
-    Over many runs, the mean transcript count should be close
-    to the Poisson mean set in mean_transcripts.
+    Over many runs, the transcript counts should follow a Poisson distribution:
+    both the mean AND the variance should be close to lambda.
+
+    A naive implementation that always returns exactly lambda transcripts
+    would pass a mean-only check but fail the variance check, because a
+    Poisson distribution has variance == mean (not variance == 0).
     """
     programs = {"type_a": np.array([1.0])}
     gene_names = ["GENE_0001"]
@@ -328,9 +332,18 @@ def test_transcript_count_is_poisson_distributed():
             np.random.default_rng(seed)
         )
         counts.append(len(result))
-    observed_mean = np.mean(counts)
-    # mean should be within 3 standard errors of lambda
+
+    counts = np.array(counts)
+    observed_mean = counts.mean()
+    observed_var  = counts.var()
+
+    # mean should be close to lambda
+    # tolerance: 3 standard errors of the mean
     assert abs(observed_mean - lam) < 3 * math.sqrt(lam / 200)
+
+    # variance should also be close to lambda (Poisson property: var == mean)
+    # tolerance: 3 standard errors of the variance estimator (~sqrt(2) * var / sqrt(n))
+    assert abs(observed_var - lam) < 3 * math.sqrt(2) * lam / math.sqrt(200)
 
 
 def test_cell_at_field_boundary_transcripts_clipped():
@@ -491,45 +504,45 @@ def _make_cli_inputs(tmp_path):
     return coords_path, cells_path, programs_path
 
 
-def test_main_creates_output_files(tmp_path):
+def test_main_creates_output_files(tmp_path, monkeypatch):
     """main() must create transcripts.csv and composition.csv in --out-dir."""
-    import sys
     from tissue_sim.generate_transcripts_with_coords import main
 
     coords, cells, programs = _make_cli_inputs(tmp_path)
     out_dir = tmp_path / "out"
 
-    sys.argv = [
+    # monkeypatch restores sys.argv automatically after the test
+    monkeypatch.setattr("sys.argv", [
         "generate_transcripts_with_coords.py",
         "--coordinates", str(coords),
         "--cells",       str(cells),
         "--programs",    str(programs),
         "--out-dir",     str(out_dir),
         "--seed",        "42",
-    ]
+    ])
     main()
 
     assert (out_dir / "transcripts.csv").is_file()
     assert (out_dir / "composition.csv").is_file()
 
 
-def test_main_transcripts_have_correct_columns(tmp_path):
+def test_main_transcripts_have_correct_columns(tmp_path, monkeypatch):
     """transcripts.csv written by main() must have the expected columns."""
-    import sys
     import csv as csv_mod
     from tissue_sim.generate_transcripts_with_coords import main
 
     coords, cells, programs = _make_cli_inputs(tmp_path)
     out_dir = tmp_path / "out"
 
-    sys.argv = [
+    # monkeypatch restores sys.argv automatically after the test
+    monkeypatch.setattr("sys.argv", [
         "generate_transcripts_with_coords.py",
         "--coordinates", str(coords),
         "--cells",       str(cells),
         "--programs",    str(programs),
         "--out-dir",     str(out_dir),
         "--seed",        "0",
-    ]
+    ])
     main()
 
     with open(out_dir / "transcripts.csv", encoding="utf-8", newline="") as f:
@@ -538,9 +551,8 @@ def test_main_transcripts_have_correct_columns(tmp_path):
         assert expected.issubset(set(reader.fieldnames))
 
 
-def test_main_raises_on_missing_cell_columns(tmp_path):
+def test_main_raises_on_missing_cell_columns(tmp_path, monkeypatch):
     """main() must raise ValueError if cells CSV is missing required columns."""
-    import sys
     import csv as csv_mod
     from tissue_sim.generate_transcripts_with_coords import main
 
@@ -554,13 +566,15 @@ def test_main_raises_on_missing_cell_columns(tmp_path):
         w.writerow({"cell_id": 1, "cell_type": "type_a"})
 
     out_dir = tmp_path / "out"
-    sys.argv = [
+
+    # monkeypatch restores sys.argv automatically after the test
+    monkeypatch.setattr("sys.argv", [
         "generate_transcripts_with_coords.py",
         "--coordinates", str(coords),
         "--cells",       str(bad_cells),
         "--programs",    str(programs),
         "--out-dir",     str(out_dir),
         "--seed",        "0",
-    ]
+    ])
     with pytest.raises(ValueError, match="--cells"):
         main()
