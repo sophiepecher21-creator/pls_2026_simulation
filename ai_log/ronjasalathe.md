@@ -77,3 +77,33 @@
 - **Decision:** Accepted the revised proposal because it checks the main functions without extensively repeating upstream input validation.
 
 ---
+
+## 03.11.2026 — Reviewing and testing the simulation pipeline
+
+- **Prompt / ask:** Review the connected pipeline and tests, and explain how to test the unmerged changes.
+- **What it produced:** Review comments with line numbers and terminal commands for checking the pipeline branch.
+- **How you checked it:** Ran ruff check . Successfully and pytest --doctest-modules: 165 passed, 6 skipped. The full simulation stopped because the course datasets were missing.
+- **What was wrong:** Some suggestions were optional rather than required. One proposed regex correction was identical to the original and was withdrawn.
+- **Decision:** Accepted the testing instructions and assessed review comments individually. Full pipeline verification remains incomplete until the course datasets are installed.
+
+---
+
+## 04.11.2026 — Acceptance criteria test mapping in SPEC.md
+
+- **Prompt / ask:** Helped me add a table to SPEC.md with one row per acceptance criterion, showing the claim, the kind of check and test file and function.
+- **What it produced:** A Markdown table mapping the seven Weeks 6-7 appearance criteria to existing tests, with notes about coverage gaps.
+- **How you checked it:** Used `git grep` and `sed` to identify dockets functions and supplied test code for mapping. Ran `pytest --doctest-modules`: 84 passed, 6 external-fixture tests skipped. Ran `git diff --check` with no errors and inspected `git diff --SPED.md`.
+- **What was wrong:** The first draft lacked the exact doctest function names. Some criteria were only partly covered by the existing tests; passing tests did not establish every claim.
+- **Decision:** Edited and accepted. Added the confirmed function and kept coverage gaps explicit. Committed and pushed the SPEC.md change for teammate review
+
+---
+
+## 15.11.2026 — Week 9 Debugging and Regression Testing
+
+- **Prompt / ask:** Help identify and fix five bugs in the spatial_mini pipeline and write regression tests.
+- **What it produced:** Explanations of bugs, suggested code fixes, and pytest regression tests.
+- **How you checked it:** Ran `pytest -q` (9/9 passed) and compared pipeline output with expected.json.
+- **What was wrong:** Five bugs in the original code; AI suggestions needed testing but no further issues found after corrections.
+- **Decision:** Accepted and implemented fixes after verifying the tests and expected output.
+
+---
