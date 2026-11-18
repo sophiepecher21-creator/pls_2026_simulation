@@ -52,6 +52,13 @@
 - What was wrong: The original radius of 15 µm meant a diameter of 30 µm, which was too large compared to the typical cell diameter of 10–20 µm mentioned in the course material. Also, 1,000 cells were too many for the grid with non-overlapping cells, and the original transcript counts were very low compared to the example of approximately 11 median transcripts per 2 µm square.
 - Decision: Changed `cell_radius_um` to 7.5, `n_cells` to 300 and `mean_transcripts_per_type` to `[600.0, 1200.0]`. These values seemed like a reasonable starting point for the simulation, although further testing may be needed.
 
+## 18-11-2026 — `blame(traceback_text)` function from `week09_notebook`
+- Prompt / question: How to implement the `blame` function
+- What it produced: function that was too complex for this simple exercise 
+- How I checked it: used the prepared check, which was still failing
+- What was wrong: it checked for `site-packages`, although the traceback contained none
+- Decision: edited - removed the unnecessary check and kept only `re.search()` to find the filename and line number
+
 ## <date> — <what I was building>
 - Prompt / question: <what I asked the AI or wrote myself>
 - What it produced: <a line or two>
