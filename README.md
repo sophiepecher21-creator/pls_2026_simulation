@@ -57,6 +57,8 @@ Do not include Finder metadata or notebook checkpoints. The committed
 missing or additional raw files. Tests of the six course datasets skip explicitly
 if the pack has not been installed; generated-fixture validator tests always run.
 
+Your data path should now look something like './data/raw/' and contain both the reference dataset and the broken datasets.
+
 ## Run
 
 From the repository root, choose an unused output directory:
