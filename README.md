@@ -51,7 +51,7 @@ The environment recipe is `environment.yml`; model settings are in
 
 Obtain the course reference dataset and broken dataset pack from ADAM. Copy the
 reference_dataset directory and broken_datasets directory into data/raw, preserving
-their contents. These external inputs are read-only and excluded from Git.
+their contents. You need to create the raw folder. These external inputs are read-only and excluded from Git.
 Do not include Finder metadata or notebook checkpoints. The committed
 `data/raw_manifest.sha256` fingerprints both packs; the simulation refuses changed,
 missing or additional raw files. Tests of the six course datasets skip explicitly
