@@ -1,6 +1,6 @@
 """Safely load simulation settings into a typed configuration object."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 import math
 import yaml
@@ -17,10 +17,16 @@ class SimulationConfig:
     square_size_um: float = 2.0
     cell_radius_um: float = 15.0
     distribution_shape: str = "uniform"
+    gaussian_spread_divisor: float = 6.0
+    cluster_spread_divisor: float = 15.0
+    min_clusters: int = 2
+    cluster_count_divisor: float = 2.0
+    max_attempts_per_cell: int = 200
     cell_types: tuple[str, ...] = ("type_a", "type_b")
     n_domains: int = 2
     domain_probabilities: tuple[tuple[float, ...], ...] = ((0.8, 0.2), (0.2, 0.8))
     reference_n_per_type: int = 80
+    sequencing_depth: float = 1.0
     n_genes: int = 100
     n_marker_genes: int = 10
     marker_boost: float = 10.0
@@ -36,10 +42,18 @@ class SimulationConfig:
             "n_genes",
             "n_marker_genes",
             "reference_n_per_type",
+            "min_clusters",
+            "max_attempts_per_cell",
         ):
             value = getattr(self, name)
             if type(value) is not int or value < 0:
                 raise ValueError(f"{name} must be a nonnegative integer")
+
+        if self.min_clusters < 1 or self.max_attempts_per_cell < 1:
+            raise ValueError(
+                "min_clusters and max_attempts_per_cell must be positive"
+            )
+
         if (
             min(self.n_cells, self.n_domains, self.n_genes, self.reference_n_per_type)
             == 0
@@ -54,6 +68,10 @@ class SimulationConfig:
             "cell_radius_um",
             "marker_boost",
             "baseline_spread",
+            "sequencing_depth",
+            "gaussian_spread_divisor",
+            "cluster_spread_divisor",
+            "cluster_count_divisor",
         ):
             value = getattr(self, name)
             if (
@@ -78,7 +96,10 @@ class SimulationConfig:
         ):
             raise ValueError("cell_types must be unique nonblank names")
         if self.distribution_shape not in ("uniform", "gaussian", "clustered"):
-            raise ValueError("Unknown distribution_shape")
+            raise ValueError(
+                f"Unknown distribution_shape: {self.distribution_shape!r}. "
+                "Choose uniform, gaussian or clustered."
+            )
         if len(self.domain_probabilities) != self.n_domains:
             raise ValueError("domain_probabilities must have n_domains rows")
         for row in self.domain_probabilities:
@@ -104,7 +125,7 @@ class SimulationConfig:
             raise ValueError("Not enough genes for disjoint marker sets")
 
 
-def read_simulation_config(path):
+def read_simulation_config(path, overrides=None):
     """Return validated SimulationConfig settings from a YAML file path.
 
     Physical lengths are micrometres; means are captured transcripts per cell.
@@ -114,16 +135,43 @@ def read_simulation_config(path):
     with Path(path).open(encoding="utf-8") as stream:
         values = yaml.safe_load(stream)
     if not isinstance(values, dict):
-        raise ValueError("Configuration must be a YAML mapping")
+        raise ValueError(f"{path}: Configuration must be a YAML mapping")
     values = dict(values)
+    valid_keys = {field.name for field in fields(SimulationConfig)}
+    unknown_keys = values.keys() - valid_keys
+    if unknown_keys:
+        raise ValueError(
+            f"{path}: Unknown configuration keys: {sorted(unknown_keys, key=str)}"
+        )
+
+    if overrides:
+        values.update(overrides)
+
     for name in ("cell_types", "mean_transcripts_per_type"):
         if name in values:
             if not isinstance(values[name], list):
-                raise ValueError(f"{name} must be a YAML list")
+                raise ValueError(f"{path}: {name} must be a YAML list")
             values[name] = tuple(values[name])
     if "domain_probabilities" in values:
         rows = values["domain_probabilities"]
         if not isinstance(rows, list) or any(not isinstance(row, list) for row in rows):
-            raise ValueError("domain_probabilities must be a list of lists")
+            raise ValueError(f"{path}: domain_probabilities must be a list of lists")
         values["domain_probabilities"] = tuple(tuple(row) for row in rows)
-    return SimulationConfig(**values)
+    try:
+        config = SimulationConfig(**values)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"{path}: {exc}") from exc
+
+    required_keys = {
+        "cell_types",
+        "domain_probabilities",
+        "mean_transcripts_per_type",
+    }
+
+    missing_keys = required_keys - values.keys()
+    if missing_keys:
+        raise ValueError(
+            f"{path}: Missing required configuration keys: {sorted(missing_keys)}"
+        )
+
+    return config

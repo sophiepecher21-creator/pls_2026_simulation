@@ -153,3 +153,17 @@ All three attempted mutations were caught: negative accumulation, reversed
 square mapping, and ignoring the configured seed. No mutants survived among
 these three experiments. Details and failing test names are recorded in
 `docs/week08_mutations.md`.
+
+## Week 10 acceptance criteria
+
+1. **[Reproducibility test]** Identical resolved configurations
+   produce identical spatial count matrices. Changing the seed
+   through the CLI changes the output and is recorded in
+   run_metadata.json.
+
+2. **[Schema / validation check]** Unknown configuration keys,
+   missing required keys and unsupported distribution shapes
+   are rejected with error messages identifying the file and
+   offending parameter.
+
+Both criteria are tested in `tests/test_week10.py`.

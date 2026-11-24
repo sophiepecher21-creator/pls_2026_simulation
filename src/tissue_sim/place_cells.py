@@ -98,7 +98,10 @@ def place_cells(coordinates, config, rng):
 
     cx, cy = xmin + width / 2, ymin + height / 2
     if distribution_shape == "clustered":
-        k = max(2, int(np.sqrt(n_cells) / 2))
+        k = max(
+            config.min_clusters,
+            int(np.sqrt(n_cells) / config.cluster_count_divisor),
+        )
         cluster_centers = np.column_stack(
             [rng.uniform(xmin, xmax, k), rng.uniform(ymin, ymax, k)]
         )
@@ -106,17 +109,23 @@ def place_cells(coordinates, config, rng):
     # --- rejection sampling: draw a candidate center, keep it only if it lies
     #     inside the field and does not overlap an already placed cell ---------
     centers = []
-    attempts, max_attempts = 0, n_cells * 200
+    attempts, max_attempts = 0, n_cells * config.max_attempts_per_cell
     while len(centers) < n_cells and attempts < max_attempts:
         attempts += 1
 
         if distribution_shape == "uniform":
             c = np.array([rng.uniform(xmin, xmax), rng.uniform(ymin, ymax)])
         elif distribution_shape == "gaussian":
-            c = np.array([rng.normal(cx, width / 6), rng.normal(cy, height / 6)])
+            c = np.array([
+                rng.normal(cx, width / config.gaussian_spread_divisor),
+                rng.normal(cy, height / config.gaussian_spread_divisor),
+            ])
         else:  # "clustered"
             c = cluster_centers[rng.integers(len(cluster_centers))]
-            c = c + rng.normal(0, [width / 15, height / 15])
+            c = c + rng.normal(0, [
+                width / config.cluster_spread_divisor,
+                height / config.cluster_spread_divisor,
+            ])
 
         if not (xmin <= c[0] <= xmax and ymin <= c[1] <= ymax):
             continue
