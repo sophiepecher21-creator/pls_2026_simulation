@@ -225,12 +225,14 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        epilog="CLI overrides take precedence over YAML values. "
+               "Omitted overrides retain the corresponding YAML values.",
     )
 
     parser.add_argument(
         "--config", type=Path,
         default=Path("config/default.yaml"),
-        help="Path to the YAML configuration file."
+        help="Path to the YAML configuration file. All parameters must be explicitly defined."
     )
 
     parser.add_argument(
