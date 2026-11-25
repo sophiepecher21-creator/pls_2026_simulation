@@ -9,30 +9,17 @@ import pytest
 import yaml
 
 from tissue_sim.aggregation import aggregate_transcripts
-from tissue_sim.configuration import SimulationConfig, read_simulation_config
+from tissue_sim.configuration import read_simulation_config
 from tissue_sim.generate_transcripts_with_coords import (
     generate_transcripts,
     get_square_id,
 )
-from tissue_sim.provenance import manifest, write_manifest
 from tissue_sim.simulation import run, simulate
 
 
-def small_config():
-    """Return a fast, low-density simulation configuration."""
-    return SimulationConfig(
-        n_cells=4,
-        field_width_um=16.0,
-        field_height_um=16.0,
-        cell_radius_um=1.0,
-        n_genes=6,
-        n_marker_genes=2,
-    )
-
-
-def test_pipeline_reproducible_and_conserves_counts():
-    a = simulate(small_config())
-    b = simulate(small_config())
+def test_pipeline_reproducible_and_conserves_counts(small_config):
+    a = simulate(small_config)
+    b = simulate(small_config)
     for name in (
         "coordinates",
         "cells",
@@ -95,30 +82,16 @@ def test_cells_without_square_centres_still_generate_and_boundaries_are_clipped(
     assert get_square_id(-0.1, 0, 2) == "sq_r000_c-01"
 
 
-def test_zero_transcripts_retains_full_grid():
-    result = simulate(replace(small_config(), mean_transcripts_per_type=(0.0, 0.0)))
+def test_zero_transcripts_retains_full_grid(small_config):
+    result = simulate(replace(small_config, mean_transcripts_per_type=(0.0, 0.0)))
     assert result.transcripts.empty and result.composition.empty
     assert result.counts.shape == (64, 7)
     assert result.counts.iloc[:, 1:].to_numpy().sum() == 0
 
 
-def prepare_run(tmp_path):
-    """Create temporary inputs so no supplied data is modified."""
-    from dataclasses import asdict
-
-    raw = tmp_path / "data/raw"
-    raw.mkdir(parents=True)
-    (raw / "example.csv").write_text("value\n7\n")
-    write_manifest(manifest(raw), raw.parent / "raw_manifest.sha256")
-    config = tmp_path / "config.yaml"
-    values = asdict(small_config())
-    # safe_dump produces ordinary lists for tuple settings.
-    config.write_text(yaml.safe_dump(values))
-    return config, raw, tmp_path / "results"
-
-
-def test_run_exports_and_refuses_overwrite(tmp_path):
-    config, raw, out = prepare_run(tmp_path)
+def test_run_exports_and_refuses_overwrite(tmp_path, run_inputs, small_config):
+    config, raw = run_inputs
+    out = tmp_path / "results"
     run(config, raw, out)
     for f in [
         "metadata.json",
@@ -135,7 +108,7 @@ def test_run_exports_and_refuses_overwrite(tmp_path):
     ]:
         assert (out / f).is_file()
     params = json.loads((out / "ground_truth/params.json").read_text())
-    assert params["seed"] == small_config().seed
+    assert params["seed"] == small_config.seed
     with pytest.raises(FileExistsError):
         run(config, raw, out)
     other = tmp_path / "repeat"
@@ -145,8 +118,9 @@ def test_run_exports_and_refuses_overwrite(tmp_path):
             assert path.read_bytes() == (other / path.relative_to(out)).read_bytes()
 
 
-def test_changed_raw_data_prevents_output(tmp_path):
-    config, raw, out = prepare_run(tmp_path)
+def test_changed_raw_data_prevents_output(tmp_path, run_inputs):
+    config, raw = run_inputs
+    out = tmp_path / "results"
     (raw / "example.csv").write_text("changed")
     with pytest.raises(ValueError, match="Raw-data verification failed"):
         run(config, raw, out)
@@ -163,8 +137,8 @@ def test_config_safe_loading(tmp_path):
         read_simulation_config(path)
 
 
-def test_exact_8_to_16_aggregation():
-    result = simulate(small_config())
+def test_exact_8_to_16_aggregation(small_config):
+    result = simulate(small_config)
     genes = result.counts.columns[1:]
     table = result.counts.merge(result.coordinates, on="square_id")
 
