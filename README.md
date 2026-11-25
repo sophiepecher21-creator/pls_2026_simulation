@@ -78,9 +78,16 @@ python run.py --out-dir results/run_002 --seed 42 --marker-boost 5.0
 ```
 
 Configuration precedence (lowest to highest priority):
-Python defaults → YAML configuration → CLI overrides.
 
-The configuration must explicitly define `cell_types`, `domain_probabilities` and `mean_transcripts_per_type`. Unknown keys and invalid parameter values are rejected.
+YAML configuration → CLI overrides.
+
+All configuration parameters must be explicitly defined in the YAML file.
+Python defaults are available for direct dataclass construction but are
+not used as fallbacks when loading YAML configurations.
+
+Missing keys, unknown keys and invalid parameter values are rejected.
+For misspelled keys, the error message suggests a correction when a
+close match is available.
 
 The original module-based command remains supported.
 

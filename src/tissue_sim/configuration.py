@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, fields
 from pathlib import Path
+import difflib
 import math
 import yaml
 
@@ -124,6 +125,21 @@ class SimulationConfig:
         if self.n_marker_genes * len(self.cell_types) > self.n_genes:
             raise ValueError("Not enough genes for disjoint marker sets")
 
+def check_keys(cfg, valid_keys, filename):
+    """Reject unknown configuration keys and suggest corrections."""
+
+    for key in cfg:
+        if key not in valid_keys:
+            suggestions = difflib.get_close_matches(
+                str(key), sorted(valid_keys), n=1
+            )
+
+            message = f"{filename}: Unknown configuration key {key!r}"
+
+            if suggestions:
+                message += f" — did you mean {suggestions[0]!r}?"
+
+            raise ValueError(message)
 
 def read_simulation_config(path, overrides=None):
     """Return validated SimulationConfig settings from a YAML file path.
@@ -138,11 +154,18 @@ def read_simulation_config(path, overrides=None):
         raise ValueError(f"{path}: Configuration must be a YAML mapping")
     values = dict(values)
     valid_keys = {field.name for field in fields(SimulationConfig)}
-    unknown_keys = values.keys() - valid_keys
-    if unknown_keys:
+
+    check_keys(values, valid_keys, path)
+
+    missing_keys = valid_keys - values.keys()
+    if missing_keys:
         raise ValueError(
-            f"{path}: Unknown configuration keys: {sorted(unknown_keys, key=str)}"
+            f"{path}: Missing required configuration keys: {sorted(missing_keys)}"
         )
+
+    if overrides:
+        check_keys(overrides, valid_keys, path)
+        values.update(overrides)
 
     if overrides:
         values.update(overrides)
@@ -161,17 +184,5 @@ def read_simulation_config(path, overrides=None):
         config = SimulationConfig(**values)
     except (ValueError, TypeError) as exc:
         raise ValueError(f"{path}: {exc}") from exc
-
-    required_keys = {
-        "cell_types",
-        "domain_probabilities",
-        "mean_transcripts_per_type",
-    }
-
-    missing_keys = required_keys - values.keys()
-    if missing_keys:
-        raise ValueError(
-            f"{path}: Missing required configuration keys: {sorted(missing_keys)}"
-        )
 
     return config

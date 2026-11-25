@@ -19,7 +19,7 @@ def test_config_precedence(tmp_path):
     path = tmp_path / "config.yaml"
     values = asdict(SimulationConfig())
     values["seed"] = 123
-    del values["marker_boost"]
+    values["marker_boost"] = 5.0
     path.write_text(yaml.safe_dump(values))
 
     config = read_simulation_config(path)
@@ -27,13 +27,14 @@ def test_config_precedence(tmp_path):
 
     assert config.seed == 123
     assert overridden.seed == 42
-    assert overridden.marker_boost == SimulationConfig().marker_boost
+    assert overridden.marker_boost == 5.0
 
 @pytest.mark.parametrize(
     "problem, key",
     [
         ("unknown", "marker_bost"),
         ("missing", "cell_types"),
+        ("missing", "n_cells"),
         ("invalid", "distribution_shape"),
     ],
 )
@@ -55,6 +56,8 @@ def test_invalid_config(tmp_path, problem, key):
 
     assert key in str(error.value)
     assert str(path) in str(error.value)
+    if problem == "unknown":
+        assert "did you mean 'marker_boost'?" in str(error.value)
 
 
 def test_sequencing_depth():

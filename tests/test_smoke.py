@@ -154,14 +154,19 @@ def test_changed_raw_data_prevents_output(tmp_path):
 
 
 def test_config_safe_loading(tmp_path):
+    from dataclasses import asdict
+
     path = tmp_path / "config.yaml"
-    path.write_text('seed: "42"\n')
-    with pytest.raises(ValueError, match="seed"):
+    values = asdict(small_config())
+    values["seed"] = "42"
+    path.write_text(yaml.safe_dump(values))
+
+    with pytest.raises(ValueError, match="seed must be a nonnegative integer"):
         read_simulation_config(path)
+
     path.write_text("!!python/object/apply:os.system [echo unsafe]")
     with pytest.raises(yaml.YAMLError):
         read_simulation_config(path)
-
 
 def test_exact_8_to_16_aggregation():
     result = simulate(small_config())

@@ -161,9 +161,12 @@ these three experiments. Details and failing test names are recorded in
    through the CLI changes the output and is recorded in
    run_metadata.json.
 
-2. **[Schema / validation check]** Unknown configuration keys,
-   missing required keys and unsupported distribution shapes
-   are rejected with error messages identifying the file and
-   offending parameter.
+2. **[Schema / validation check]** All configuration parameters must be
+   explicitly defined in YAML before CLI overrides are applied.
+   Unknown keys, missing parameters and unsupported distribution shapes
+   are rejected with actionable error messages identifying the filename
+   and affected key. Unknown keys receive correction suggestions when
+   a close match is available.
+   Verified by `tests/test_week10.py::test_invalid_config`.
 
 Both criteria are tested in `tests/test_week10.py`.
