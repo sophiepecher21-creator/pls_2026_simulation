@@ -1,12 +1,9 @@
-from pathlib import Path
-import yaml
 import json
+from pathlib import Path
+
+import yaml
 
 from tissue_sim.simulation import run
-
-
-CONFIG = Path("config/default.yaml")
-RAW_DIR = Path("data/raw")
 
 
 def get_files(directory):
@@ -35,13 +32,14 @@ def comparable_content(filename, content):
     return json.dumps(metadata, sort_keys=True).encode("utf-8")
 
 
-def test_reproducibility(tmp_path):
+def test_reproducibility(tmp_path, run_inputs):
+    config_path, raw_dir = run_inputs
     # 1. Run twice with the same seed
     out1 = tmp_path / "run_001"
     out2 = tmp_path / "run_002"
 
-    run(CONFIG, RAW_DIR, out1)
-    run(CONFIG, RAW_DIR, out2)
+    run(config_path, raw_dir, out1)
+    run(config_path, raw_dir, out2)
 
     files1 = get_files(out1)
     files2 = get_files(out2)
@@ -57,18 +55,18 @@ def test_reproducibility(tmp_path):
         ), f"Same seed produced different contents in {filename}"
 
     # 2. Create a configuration with a different seed
-    config_data = yaml.safe_load(CONFIG.read_text())
+    config_data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
 
     original_seed = config_data["seed"]
     config_data["seed"] = original_seed + 1
 
     different_config = tmp_path / "different_config.yaml"
-    different_config.write_text(yaml.safe_dump(config_data))
+    different_config.write_text(yaml.safe_dump(config_data), encoding="utf-8")
 
     # 3. Run with different seed
     out3 = tmp_path / "run_003"
 
-    run(different_config, RAW_DIR, out3)
+    run(different_config, raw_dir, out3)
 
     files3 = get_files(out3)
 
