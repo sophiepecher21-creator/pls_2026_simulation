@@ -107,3 +107,43 @@
 - **Decision:** Accepted and implemented fixes after verifying the tests and expected output.
 
 ---
+
+## 23.11.2026 — Week 10: Configuration, CLI and reproducibility
+
+- **Prompt / ask:** Used AI to help me implement the Week 10 requirements in
+  the existing simulation pipeline, while keeping
+  changes minimal and preserving the existing scientific defaults.
+
+- **What it produced:** Suggestions for moving hard-coded parameters
+  into YAML, configuration validation, CLI overrides, run metadata,
+  reference sequencing depth, expression-program correlation,
+  automated tests and documentation.
+
+- **How you checked it:**
+  - Ran pytest after individual implementation steps (96 tests passed).
+  - Tested the CLI using --help and a simulation with parameter overrides.
+  - Inspected the generated run_metadata.json.
+  - Verified that increasing sequencing depth affects reference counts
+    without changing spatial counts.
+  - Added six test cases for validation, configuration precedence,
+    sequencing depth and CLI reproducibility (102 tests passed).
+  - Checked test runtime using pytest --durations=6.
+  - Ran documentation tests (3 passed) and git diff --check.
+
+- **What was wrong:**
+  - The initial configuration validation order caused an existing
+    test to fail because it reported missing keys before an invalid seed.
+  - The CLI reproducibility test used an unnecessarily large dataset
+    and took approximately 15 seconds.
+  - The README path checker rejected references to generated output
+    files because they did not exist in the repository.
+
+- **Decision:** Edited and accepted. Adjusted the validation order,
+  reduced the integration test dataset size and corrected the README
+  formatting. Applied changes manually and verified them incrementally.
+  Preserved the existing scientific defaults and restricted sequencing
+  depth to the independent reference experiment. The optimized Week 10
+  tests all passed in 3.57 seconds. Final verification: 104 tests passed, including doctests.
+  Ruff and git diff --check reported no issues.
+
+---

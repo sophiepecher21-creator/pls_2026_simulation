@@ -3,7 +3,9 @@
 import pandas as pd
 
 
-def generate_reference(programs, genes, means, n_per_type, rng):
+def generate_reference(
+    programs, genes, means, n_per_type, rng, sequencing_depth=1.0
+):
     """Return independently sampled reference count and label DataFrames.
 
     programs maps types to true gene probabilities, means to captured transcripts
@@ -11,12 +13,16 @@ def generate_reference(programs, genes, means, n_per_type, rng):
     reference cell, using rng; never copy sampled tissue cells or transcripts.
     Rows share cell_id order; gene order follows genes. n_per_type controls the
     number of profiled cells per type (80 by default in SimulationConfig).
+    sequencing_depth scales the mean captured transcripts per reference cell.
     """
     rows, labels = [], []
     for cell_type, probabilities in programs.items():
         for _ in range(n_per_type):
             cell_id = f"ref_{len(rows) + 1:04d}"
-            counts = rng.multinomial(rng.poisson(means[cell_type]), probabilities)
+            counts = rng.multinomial(
+		rng.poisson(means[cell_type] * sequencing_depth),
+		probabilities,
+	    )
             rows.append([cell_id, *counts])
             labels.append([cell_id, cell_type])
     return (
