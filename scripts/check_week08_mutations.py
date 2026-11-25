@@ -36,6 +36,7 @@ MUTATIONS = [
 def run_case(directory, mutation=None):
     """Run the focused tests against an isolated copy of the current source."""
     shutil.copytree(ROOT / "src", directory / "src")
+    shutil.copytree(ROOT / "config", directory / "config")
     (directory / "tests").mkdir()
     shutil.copy2(ROOT / TEST, directory / TEST)
 

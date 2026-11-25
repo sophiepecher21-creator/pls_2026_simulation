@@ -6,14 +6,15 @@ import pandas as pd
 import pytest
 
 from tissue_sim.aggregation import aggregate_transcripts
-from tissue_sim.configuration import SimulationConfig
+from tissue_sim.configuration import read_simulation_config
 from tissue_sim.simulation import simulate
 
 
 @pytest.fixture
 def tiny_config():
     """Return a small simulation that does not need external course data."""
-    return SimulationConfig(
+    return replace(
+        read_simulation_config(),
         n_cells=4,
         field_width_um=16.0,
         field_height_um=16.0,
@@ -21,6 +22,7 @@ def tiny_config():
         n_genes=6,
         n_marker_genes=2,
         reference_n_per_type=4,
+        mean_transcripts_per_type=(20.0, 40.0),
     )
 
 

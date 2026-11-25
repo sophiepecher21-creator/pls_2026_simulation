@@ -6,7 +6,7 @@
 
 seed: 20260101          # fixes every random draw; recorded in run_metadata.json
 
-# Week 3 toy tissue
+# Tissue geometry and number of cells
 n_cells: 300
 field_width_um: 320.0
 field_height_um: 320.0
@@ -23,7 +23,7 @@ cell_types:
 
 
 # Cell placement (place_cells)
-cell_radius_um: 7.5           # radius of each round cell; placeholder don't make it negative
+cell_radius_um: 7.5           # radius of each round cell in µm
 distribution_shape: uniform     # uniform | gaussian | clustered
 
 # Spatial domains: rows are domains; columns follow cell_types order.
@@ -41,8 +41,8 @@ reference_n_per_type: 80
 sequencing_depth: 1.0
 
 # Cell placement parameters
-gaussian_spread_divisor: 6.0
-cluster_spread_divisor: 15.0
+gaussian_spread_divisor: 6.0 # Divide each field dimension by this for the Gaussian SD.
+cluster_spread_divisor: 15.0 # Divide each field dimension by this for the within-cluster SD.
 min_clusters: 2
-cluster_count_divisor: 2.0
-max_attempts_per_cell: 200
+cluster_count_divisor: 2.0 # Divide sqrt(n_cells) by this before rounding down.
+max_attempts_per_cell: 200 # Total candidate limit = n_cells times this value.

@@ -1,6 +1,6 @@
 """Check the connected pipeline, exact aggregation, and reproducibility."""
 
-from dataclasses import replace
+from dataclasses import asdict, replace
 import json
 
 import numpy as np

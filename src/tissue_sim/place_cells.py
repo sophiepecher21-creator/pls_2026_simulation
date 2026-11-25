@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial import cKDTree
 
-DEFAULT_CONFIG = "config/default.yaml"
+from tissue_sim.configuration import DEFAULT_CONFIG_PATH, read_simulation_config
 
 # columns this script adds to (or overwrites in) the CSV
 CELL_COLUMNS = ["cell_id", "center_x_um", "center_y_um", "radius_um"]
@@ -185,12 +185,10 @@ def main():
     )
     p.add_argument(
         "--config",
-        default=DEFAULT_CONFIG,
-        help=f"YAML config file (default: {DEFAULT_CONFIG})",
+        default=DEFAULT_CONFIG_PATH,
+        help=f"YAML config file (default: {DEFAULT_CONFIG_PATH})",
     )
     args = p.parse_args()
-
-    from tissue_sim.configuration import read_simulation_config
 
     config = read_simulation_config(args.config)
     coordinates = read_coordinates(args.input)

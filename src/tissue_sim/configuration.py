@@ -7,6 +7,9 @@ import math
 import yaml
 
 
+DEFAULT_CONFIG_PATH = Path("config/default.yaml")
+
+
 @dataclass(frozen=True)
 class SimulationConfig:
     """Settings shared by all simulation stages; lengths are in micrometers."""

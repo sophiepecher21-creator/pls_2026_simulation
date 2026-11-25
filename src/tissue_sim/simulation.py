@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from tissue_sim.aggregation import aggregate_transcripts
-from tissue_sim.configuration import read_simulation_config
+from tissue_sim.configuration import DEFAULT_CONFIG_PATH, read_simulation_config
 from tissue_sim.domains import assign_cell_types, build_domains_dataframe
 from tissue_sim.expression_programs import (
     generate_cell_type_programs,

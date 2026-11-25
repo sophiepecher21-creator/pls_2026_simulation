@@ -13,6 +13,8 @@ from pathlib import Path
 
 import numpy as np
 
+from tissue_sim.configuration import DEFAULT_CONFIG_PATH, read_simulation_config
+
 
 # =============================================================================
 # Step 1 - load input files
@@ -201,21 +203,23 @@ def main():
     parser.add_argument("--coordinates", type=Path, required=True)
     parser.add_argument("--cells", type=Path, required=True)
     parser.add_argument("--programs", type=Path, required=True)
+    parser.add_argument(
+        "--config", type=Path, default=DEFAULT_CONFIG_PATH,
+        help="YAML configuration for scientific defaults",
+    )
     parser.add_argument("--out-dir", type=Path, default=Path("output"))
     parser.add_argument(
         "--mean-transcripts",
         type=float,
-        default=20.0,
-        help="Fallback Poisson mean if not in the JSON (default: 20)",
+        help="Fallback Poisson mean for types without a mean in the JSON",
     )
     parser.add_argument(
         "--square-size",
         type=float,
-        default=2.0,
-        help="Size of one measurement square in µm (default: 2.0)",
+        help="Override the YAML measurement square size in µm for this input grid",
     )
     parser.add_argument(
-        "--seed", type=int, default=None, help="Random seed for reproducibility"
+        "--seed", type=int, help="Override the YAML random seed"
     )
     args = parser.parse_args()
 
@@ -229,16 +233,29 @@ def main():
             "--cells must be the complete typed cells table from simulation.py"
         )
     programs, gene_names, means = load_expression_programs(args.programs)
-    means = {name: means.get(name, args.mean_transcripts) for name in programs}
+    config = read_simulation_config(args.config)
+    config_means = dict(zip(config.cell_types, config.mean_transcripts_per_type, strict=True))
+    if args.mean_transcripts is not None:
+        config_means = dict.fromkeys(programs, args.mean_transcripts)
+    all_means = config_means | means
+    missing_means = programs.keys() - all_means.keys()
+    if missing_means:
+        raise ValueError(
+            f"Missing transcript means for {sorted(missing_means)}. "
+            "Supply means in --programs, --config or --mean-transcripts."
+        )
+    means = {name: all_means[name] for name in programs}
+    square_size = config.square_size_um if args.square_size is None else args.square_size
+    seed = config.seed if args.seed is None else args.seed
     transcripts = generate_transcripts(
         cells,
         programs,
         gene_names,
         means,
-        args.square_size,
-        float(coordinates.x_um.max() + args.square_size / 2),
-        float(coordinates.y_um.max() + args.square_size / 2),
-        np.random.default_rng(args.seed),
+        square_size,
+        float(coordinates.x_um.max() + square_size / 2),
+        float(coordinates.y_um.max() + square_size / 2),
+        np.random.default_rng(seed),
     )
     from tissue_sim.aggregation import aggregate_transcripts
 

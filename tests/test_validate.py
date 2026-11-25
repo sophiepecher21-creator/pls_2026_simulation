@@ -7,24 +7,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tissue_sim.configuration import SimulationConfig
 from tissue_sim.reference import generate_reference
 from tissue_sim.simulation import simulate, write_results
 from tissue_sim.validate import validate_dataset
 
 
 @pytest.fixture
-def dataset(tmp_path):
-    config = SimulationConfig(
-        n_cells=4,
-        field_width_um=16.0,
-        field_height_um=16.0,
-        cell_radius_um=1.0,
-        n_genes=6,
-        n_marker_genes=2,
-    )
+def dataset(tmp_path, small_config):
     output = tmp_path / "dataset"
-    write_results(simulate(config), output)
+    write_results(simulate(small_config), output)
     return output
 
 
@@ -33,8 +24,8 @@ def test_generated_dataset_conforms(dataset, capsys):
     assert capsys.readouterr() == ("", "")
 
 
-def test_empty_composition_is_zero_not_missing(tmp_path):
-    config = replace(SimulationConfig(), mean_transcripts_per_type=(0.0, 0.0))
+def test_empty_composition_is_zero_not_missing(tmp_path, small_config):
+    config = replace(small_config, mean_transcripts_per_type=(0.0, 0.0))
     output = tmp_path / "zeros"
     write_results(simulate(config), output)
     validate_dataset(output)
