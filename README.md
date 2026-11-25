@@ -10,7 +10,33 @@ before the run succeeds. File formats are defined in `docs/data_contract.pdf`.
 
 ## Install
 
-From the repository root, with conda installed:
+### Get the project files
+Before installing, download or clone this repository onto your computer.
+
+- **Download ZIP:** On the repository page, select **Code → Download ZIP**, then extract the downloaded archive.
+- **Git:** Clone the repository using its repository URL.
+
+Open a terminal and navigate into the extracted or cloned project folder:
+
+```bash
+cd path/to/pls_2026_simulation
+```
+
+Replace `path/to/pls_2026_simulation` with the location of the folder on your computer. If you downloaded a ZIP, the extracted folder may have a suffix such as `-main`.
+
+Check that this folder contains `environment.yml` and `pyproject.toml`.
+
+### Install the environment and project
+
+Run each command separately. If a command fails, resolve the error before continuing.
+
+```bash
+conda env create -f environment.yml
+conda activate pls2026
+python -m pip install -e .
+```
+
+After activation, your terminal prompt should show `(pls2026)`. Run the remaining commands in this README from the project folder unless instructed otherwise.
 
 ```bash
 conda env create -f environment.yml
@@ -25,11 +51,13 @@ The environment recipe is `environment.yml`; model settings are in
 
 Obtain the course reference dataset and broken dataset pack from ADAM. Copy the
 reference_dataset directory and broken_datasets directory into data/raw, preserving
-their contents. These external inputs are read-only and excluded from Git.
+their contents. You need to create the raw folder. These external inputs are read-only and excluded from Git.
 Do not include Finder metadata or notebook checkpoints. The committed
 `data/raw_manifest.sha256` fingerprints both packs; the simulation refuses changed,
 missing or additional raw files. Tests of the six course datasets skip explicitly
 if the pack has not been installed; generated-fixture validator tests always run.
+
+Your data path should now look something like './data/raw/' and contain both the reference dataset and the broken datasets.
 
 ## Run
 

@@ -94,3 +94,18 @@ our own future simulation outputs will be generated data.
   full validation still requires every contract file and full metadata.
 - How it was checked: Verified the existing tests against the refactor and the new notebook example.
 - Decision: implemented
+### Week 8 — simulation invariants and mutation testing — 2026-11-10
+Request: Strengthen the simulation suite, test seed determinism, and the aggregation invariant. Add a metamorphic test, and prepare changes for teammate review. Supplemented this prompt with the week 8 documentation for clarity. 
+Codex produced: Added explicit seed tests, an asymmetric aggregation example, and a metamorphic test. The metamorphic claim is: duplicating every input transcript must exactly double both gene counts and cell-type composition, while empty squares stay empty. Produced six test cases: three same-seed cases, one different-seed case, one exact aggregation case, and one metamorphic case. Also strengthened the 8-to-16 µm aggregation invariant from the test_exact_8_to_16_aggregation(). We used a 32 × 48 µm field with six separate 16 µm bins. Counts varied by row and column, so swapping axes or moving counts between bins should have changed the expected answer. This resulted in seven passing cases. The binning here is performed inside the test; it verifies that the production aggregation preserves the spatial gene counts needed for the invariant. The last thing codex produced was a test to see whether our checks detect deliberately broken code. We made each mutation in a temporary copy, so your working source files stay intact.
+The three mutations were:
+1. Subtract transcripts instead of adding them.
+2. Assign counts to squares in reverse order.
+3. Ignore the configured seed and always use seed 42
+How it was checked: All seven test cases passed, Ruff passed for the new test file and mutation script. 
+What went wrong: Not necessarily wrong, but worth noting that this is a focused mutation experiment. Full suite verification is recorded separately after it is run. There are also some gaps in our pipeline that still need to be fixed. Some requirements for this project still lack direct test evidence: 
+-The simulator automatically validates its output before returning success.
+-Reference cells are sampled independently of the tissue, and their sample size is configurable.
+-Metadata correctly marks a dirty Git working tree.
+-The actual course data packs match the recorded hashes and are fully covered by the manifest.
+But this is not necessarily directly related to the updates we needed to implement for week 8. 
+Decision: implemented

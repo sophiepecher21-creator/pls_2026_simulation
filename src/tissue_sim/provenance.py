@@ -14,7 +14,7 @@ def manifest(root):
 
     for path in sorted(root.rglob("*")):
         if path.is_file():
-            name = path.relative_to(root).as_posix()                                                  
+            name = path.relative_to(root).as_posix()
             hashes[name] = hashlib.sha256(path.read_bytes()).hexdigest()
 
     return hashes
