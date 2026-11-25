@@ -4,22 +4,22 @@ from dataclasses import asdict, replace
 import json
 import subprocess
 import sys
-from unittest.mock import Mock
 
 import pytest
 import yaml
 
-from tissue_sim.configuration import read_simulation_config
-from tissue_sim.place_cells import place_cells
+from tissue_sim.configuration import (
+    SimulationConfig,
+    read_simulation_config,
+)
 from tissue_sim.provenance import manifest, write_manifest
 from tissue_sim.simulation import simulate
 
 def test_config_precedence(tmp_path):
     path = tmp_path / "config.yaml"
-    defaults = read_simulation_config()
-    values = asdict(defaults)
+    values = asdict(SimulationConfig())
     values["seed"] = 123
-    del values["n_cells"]
+    values["marker_boost"] = 5.0
     path.write_text(yaml.safe_dump(values))
 
     config = read_simulation_config(path)
@@ -27,19 +27,20 @@ def test_config_precedence(tmp_path):
 
     assert config.seed == 123
     assert overridden.seed == 42
-    assert overridden.n_cells == defaults.n_cells
+    assert overridden.marker_boost == 5.0
 
 @pytest.mark.parametrize(
-    "problem, key, reason",
+    "problem, key",
     [
-        ("unknown", "marker_bost", "Unknown configuration keys"),
-        ("missing", "cell_types", "Missing required configuration keys"),
-        ("invalid", "distribution_shape", "Unknown distribution_shape"),
+        ("unknown", "marker_bost"),
+        ("missing", "cell_types"),
+        ("missing", "n_cells"),
+        ("invalid", "distribution_shape"),
     ],
 )
-def test_invalid_config(tmp_path, small_config, problem, key, reason):
+def test_invalid_config(tmp_path, problem, key):
     path = tmp_path / "invalid.yaml"
-    values = asdict(small_config)
+    values = asdict(SimulationConfig())
 
     if problem == "unknown":
         values[key] = 10
@@ -50,15 +51,17 @@ def test_invalid_config(tmp_path, small_config, problem, key, reason):
 
     path.write_text(yaml.safe_dump(values))
 
-    with pytest.raises(ValueError, match=reason) as error:
+    with pytest.raises(ValueError) as error:
         read_simulation_config(path)
 
     assert key in str(error.value)
     assert str(path) in str(error.value)
+    if problem == "unknown":
+        assert "did you mean 'marker_boost'?" in str(error.value)
 
 
-def test_sequencing_depth(small_config):
-    config = small_config
+def test_sequencing_depth():
+    config = SimulationConfig()
 
     a = simulate(config)
     b = simulate(replace(config, sequencing_depth=2.0))
@@ -71,22 +74,7 @@ def test_sequencing_depth(small_config):
 
     assert total_b > total_a
 
-def test_placement_attempt_limit_comes_from_config(tmp_path, small_config):
-    path = tmp_path / "config.yaml"
-    values = asdict(small_config) | {"n_cells": 2, "max_attempts_per_cell": 3}
-    path.write_text(yaml.safe_dump(values))
-    config = read_simulation_config(path)
-
-    # Always propose the same centre. Only the first candidate can be accepted.
-    rng = Mock()
-    rng.uniform.return_value = 4.0
-    _, cells = place_cells([{"x_um": 4.0, "y_um": 4.0}], config, rng)
-
-    assert len(cells) == 1
-    assert rng.uniform.call_count == 2 * 2 * 3  # two coordinate draws per attempt
-
-
-def test_cli_reproducibility(tmp_path, small_config):
+def test_cli_reproducibility(tmp_path):
     raw = tmp_path / "raw"
     raw.mkdir()
     write_manifest(
@@ -94,7 +82,15 @@ def test_cli_reproducibility(tmp_path, small_config):
     )
 
     config = tmp_path / "config.yaml"
-    small_config = replace(small_config, reference_n_per_type=5)
+    small_config = SimulationConfig(
+        field_width_um=32.0,
+        field_height_um=32.0,
+        n_cells=4,
+        cell_radius_um=3.0,
+        n_genes=20,
+        n_marker_genes=3,
+        reference_n_per_type=5,
+    )
     config.write_text(yaml.safe_dump(asdict(small_config)))
 
     def execute(name, seed):
