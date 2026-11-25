@@ -36,3 +36,13 @@ domain_probabilities:
 mean_transcripts_per_type: [600.0, 1200.0]  
 # Independent profiled reference cells per type; contract recommends at least ~50.
 reference_n_per_type: 80
+
+# Reference sequencing depth multiplier (dimensionless)
+sequencing_depth: 1.0
+
+# Cell placement parameters
+gaussian_spread_divisor: 6.0
+cluster_spread_divisor: 15.0
+min_clusters: 2
+cluster_count_divisor: 2.0
+max_attempts_per_cell: 200

@@ -1,6 +1,7 @@
 """Connect the simulation stages in memory and export their final tables."""
 
 import argparse
+import sys
 import datetime
 from importlib.metadata import version
 from dataclasses import asdict, dataclass
@@ -85,6 +86,18 @@ def simulate(config):
     programs = generate_cell_type_programs(
         config.cell_types, baseline, markers, config.marker_boost
     )
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        program_correlation = np.atleast_2d(
+            np.corrcoef([programs[t] for t in config.cell_types])
+        )
+
+    program_correlation = np.where(
+        np.isfinite(program_correlation),
+        program_correlation,
+        None,
+    )
+
     genes = [f"GENE_{i + 1:04d}" for i in range(config.n_genes)]
     means = dict(zip(config.cell_types, config.mean_transcripts_per_type, strict=True))
     transcripts = generate_transcripts(
@@ -99,7 +112,8 @@ def simulate(config):
     )
     counts, composition = aggregate_transcripts(coordinates, transcripts, genes)
     reference_counts, reference_labels = generate_reference(
-        programs, genes, means, config.reference_n_per_type, rng
+        programs, genes, means, config.reference_n_per_type, rng,
+        sequencing_depth=config.sequencing_depth,
     )
     params = asdict(config)
     params.update(
@@ -108,6 +122,7 @@ def simulate(config):
         n_markers_per_type=config.n_marker_genes,
         marker_gene_boost=config.marker_boost,
         baseline=baseline.tolist(),
+        expression_program_correlation=program_correlation.tolist(),
     )
     return SimulationResult(
         coordinates,
@@ -187,12 +202,14 @@ def write_results(result, out_dir):
     validate_dataset(out_dir)
 
 
-def run(config_path, raw_dir, out_dir):
+def run(config_path, raw_dir, out_dir, overrides=None):
     """Verify supplied raw data, simulate in memory, export tables and provenance."""
     raw_dir = Path(raw_dir)
+
     manifest_path = raw_dir.parent / "raw_manifest.sha256"
     require_verified(raw_dir, manifest_path)
-    config = read_simulation_config(config_path)
+    config = read_simulation_config(config_path, overrides=overrides)
+
     if Path(out_dir).exists():
         raise FileExistsError(f"Choose a new output directory: {out_dir}")
     result = simulate(config)
@@ -213,17 +230,76 @@ def run(config_path, raw_dir, out_dir):
     (Path(out_dir) / "run_metadata.json").write_text(
         json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
     )
+
     return result
 
 
 def main():
     """Read terminal arguments and run the connected simulation pipeline."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--data-dir", type=Path, required=True)
-    parser.add_argument("--out-dir", type=Path, required=True)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        epilog="CLI overrides take precedence over YAML values. "
+               "Omitted overrides retain the corresponding YAML values.",
+    )
+
+    parser.add_argument(
+        "--config", type=Path,
+        default=Path("config/default.yaml"),
+        help="Path to the YAML configuration file. All parameters must be explicitly defined."
+    )
+
+    parser.add_argument(
+        "--data-dir", type=Path,
+        default=Path("data/raw"),
+        help="Directory containing the read-only course data."
+    )
+
+    parser.add_argument(
+        "--out-dir", type=Path, required=True,
+        help="New directory for simulation results."
+    )
+
+    parser.add_argument(
+        "--seed", type=int,
+        help="Override the random seed."
+    )
+    parser.add_argument(
+        "--marker-boost", type=float,
+        help="Override marker gene expression fold-change."
+    )
+    parser.add_argument(
+        "--n-marker-genes", type=int,
+        help="Override the number of marker genes per cell type."
+    )
+    parser.add_argument(
+        "--sequencing-depth", type=float,
+        help="Override reference sequencing depth multiplier."
+    )
+    parser.add_argument(
+        "--reference-n-per-type", type=int,
+        help="Override the number of reference cells per type."
+    )
+
     args = parser.parse_args()
-    result = run(args.config, args.data_dir, args.out_dir)
+
+    overrides = {
+        name: getattr(args, name)
+        for name in (
+            "seed",
+            "marker_boost",
+            "n_marker_genes",
+            "sequencing_depth",
+            "reference_n_per_type",
+        )
+        if getattr(args, name) is not None
+    }
+
+    result = run(
+        args.config, args.data_dir, args.out_dir,
+        overrides=overrides,
+    )
+
     print(
         f"Wrote {len(result.coordinates)} squares and {len(result.transcripts)} transcripts to {args.out_dir}"
     )
