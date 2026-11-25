@@ -10,7 +10,6 @@ from pathlib import Path
 
 import hashlib
 import platform
-import sys
 
 import numpy as np
 import pandas as pd
@@ -245,7 +244,7 @@ def main():
 
     parser.add_argument(
         "--config", type=Path,
-        default=Path("config/default.yaml"),
+        default=DEFAULT_CONFIG_PATH,
         help="Path to the YAML configuration file. All parameters must be explicitly defined."
     )
 

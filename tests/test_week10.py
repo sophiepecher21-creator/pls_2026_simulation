@@ -121,5 +121,8 @@ def test_cli_reproducibility(tmp_path):
 
     metadata = json.loads((c / "run_metadata.json").read_text())
 
-    assert metadata["resolved_config"]["seed"] == 43
-    assert "--seed 43" in metadata["command_line"]
+    assert metadata["config_resolved"]["seed"] == 43
+    assert "--seed" in metadata["command"]
+    assert metadata["command"][
+        metadata["command"].index("--seed") + 1
+    ] == "43"
