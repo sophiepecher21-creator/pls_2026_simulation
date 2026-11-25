@@ -127,11 +127,9 @@ def test_changed_raw_data_prevents_output(tmp_path, run_inputs):
     assert not out.exists()
 
 
-def test_config_safe_loading(tmp_path):
-    from dataclasses import asdict
-
+def test_config_safe_loading(tmp_path, small_config):
     path = tmp_path / "config.yaml"
-    values = asdict(small_config())
+    values = asdict(small_config)
     values["seed"] = "42"
     path.write_text(yaml.safe_dump(values))
 
@@ -142,8 +140,8 @@ def test_config_safe_loading(tmp_path):
     with pytest.raises(yaml.YAMLError):
         read_simulation_config(path)
 
-def test_exact_8_to_16_aggregation():
-    result = simulate(small_config())
+def test_exact_8_to_16_aggregation(small_config):
+    result = simulate(small_config)
     genes = result.counts.columns[1:]
     table = result.counts.merge(result.coordinates, on="square_id")
 

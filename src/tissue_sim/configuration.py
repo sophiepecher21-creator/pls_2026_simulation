@@ -128,6 +128,7 @@ class SimulationConfig:
         if self.n_marker_genes * len(self.cell_types) > self.n_genes:
             raise ValueError("Not enough genes for disjoint marker sets")
 
+
 def check_keys(cfg, valid_keys, filename):
     """Reject unknown configuration keys and suggest corrections."""
 
@@ -144,7 +145,8 @@ def check_keys(cfg, valid_keys, filename):
 
             raise ValueError(message)
 
-def read_simulation_config(path, overrides=None):
+
+def read_simulation_config(path=DEFAULT_CONFIG_PATH, overrides=None):
     """Return validated SimulationConfig settings from a YAML file path.
 
     Physical lengths are micrometres; means are captured transcripts per cell.
@@ -168,9 +170,6 @@ def read_simulation_config(path, overrides=None):
 
     if overrides:
         check_keys(overrides, valid_keys, path)
-        values.update(overrides)
-
-    if overrides:
         values.update(overrides)
 
     for name in ("cell_types", "mean_transcripts_per_type"):
