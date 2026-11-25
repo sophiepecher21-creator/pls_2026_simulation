@@ -1,11 +1,13 @@
 """Tests for tissue_sim.generate_transcripts_with_coords."""
 
+from dataclasses import asdict
 import json
 import math
 
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
 from tissue_sim.generate_transcripts_with_coords import (
     generate_transcripts,
@@ -578,3 +580,31 @@ def test_main_raises_on_missing_cell_columns(tmp_path, monkeypatch):
     ])
     with pytest.raises(ValueError, match="--cells"):
         main()
+
+@pytest.mark.parametrize("fallback", [None, 10.0])
+def test_main_uses_configured_transcript_mean_and_seed(
+    tmp_path, monkeypatch, small_config, fallback
+):
+    from tissue_sim.generate_transcripts_with_coords import main
+
+    coords, cells, programs = _make_cli_inputs(tmp_path)
+    programs_data = json.loads(programs.read_text())
+    del programs_data["mean_transcripts"]
+    programs.write_text(json.dumps(programs_data))
+    config = tmp_path / "config.yaml"
+    values = asdict(small_config) | {"seed": 42, "mean_transcripts_per_type": [0.0, 40.0]}
+    config.write_text(yaml.safe_dump(values))
+    out = tmp_path / "out"
+    argv = [
+        "generate_transcripts_with_coords.py", "--coordinates", str(coords),
+        "--cells", str(cells), "--programs", str(programs), "--config", str(config),
+        "--out-dir", str(out),
+    ]
+    if fallback is not None:
+        argv.extend(["--mean-transcripts", str(fallback)])
+    monkeypatch.setattr("sys.argv", argv)
+
+    main()
+
+    expected_count = np.random.default_rng(42).poisson(fallback or 0.0)
+    assert len(pd.read_csv(out / "transcripts.csv")) == expected_count

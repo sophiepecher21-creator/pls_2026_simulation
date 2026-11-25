@@ -78,7 +78,7 @@ python run.py --out-dir results/run_002 --seed 42 --marker-boost 5.0
 ```
 
 Configuration precedence (lowest to highest priority):
-Python defaults → YAML configuration → CLI overrides.
+`config/default.yaml` → custom YAML configuration → CLI overrides.
 
 The configuration must explicitly define `cell_types`, `domain_probabilities` and `mean_transcripts_per_type`. Unknown keys and invalid parameter values are rejected.
 

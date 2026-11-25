@@ -1,6 +1,6 @@
 """Check the connected pipeline, exact aggregation, and reproducibility."""
 
-from dataclasses import replace
+from dataclasses import asdict, replace
 import json
 
 import numpy as np
@@ -127,9 +127,9 @@ def test_changed_raw_data_prevents_output(tmp_path, run_inputs):
     assert not out.exists()
 
 
-def test_config_safe_loading(tmp_path):
+def test_config_safe_loading(tmp_path, small_config):
     path = tmp_path / "config.yaml"
-    path.write_text('seed: "42"\n')
+    path.write_text(yaml.safe_dump(asdict(small_config) | {"seed": "42"}))
     with pytest.raises(ValueError, match="seed"):
         read_simulation_config(path)
     path.write_text("!!python/object/apply:os.system [echo unsafe]")

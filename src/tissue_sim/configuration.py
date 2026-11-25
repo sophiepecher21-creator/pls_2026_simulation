@@ -6,32 +6,35 @@ import math
 import yaml
 
 
+DEFAULT_CONFIG_PATH = Path("config/default.yaml")
+
+
 @dataclass(frozen=True)
 class SimulationConfig:
     """Settings shared by all simulation stages; lengths are in micrometers."""
 
-    seed: int = 20260101
-    n_cells: int = 20
-    field_width_um: float = 320.0
-    field_height_um: float = 320.0
-    square_size_um: float = 2.0
-    cell_radius_um: float = 15.0
-    distribution_shape: str = "uniform"
-    gaussian_spread_divisor: float = 6.0
-    cluster_spread_divisor: float = 15.0
-    min_clusters: int = 2
-    cluster_count_divisor: float = 2.0
-    max_attempts_per_cell: int = 200
-    cell_types: tuple[str, ...] = ("type_a", "type_b")
-    n_domains: int = 2
-    domain_probabilities: tuple[tuple[float, ...], ...] = ((0.8, 0.2), (0.2, 0.8))
-    reference_n_per_type: int = 80
-    sequencing_depth: float = 1.0
-    n_genes: int = 100
-    n_marker_genes: int = 10
-    marker_boost: float = 10.0
-    baseline_spread: float = 1.0
-    mean_transcripts_per_type: tuple[float, ...] = (20.0, 40.0)
+    seed: int
+    n_cells: int
+    field_width_um: float
+    field_height_um: float
+    square_size_um: float
+    cell_radius_um: float
+    distribution_shape: str
+    gaussian_spread_divisor: float
+    cluster_spread_divisor: float
+    min_clusters: int
+    cluster_count_divisor: float
+    max_attempts_per_cell: int
+    cell_types: tuple[str, ...]
+    n_domains: int
+    domain_probabilities: tuple[tuple[float, ...], ...]
+    reference_n_per_type: int
+    sequencing_depth: float
+    n_genes: int
+    n_marker_genes: int
+    marker_boost: float
+    baseline_spread: float
+    mean_transcripts_per_type: tuple[float, ...]
 
     def __post_init__(self):
         """Reject malformed settings before simulation or random sampling."""
@@ -125,53 +128,50 @@ class SimulationConfig:
             raise ValueError("Not enough genes for disjoint marker sets")
 
 
-def read_simulation_config(path, overrides=None):
-    """Return validated SimulationConfig settings from a YAML file path.
-
-    Physical lengths are micrometres; means are captured transcripts per cell.
-    These are model inputs, not quantities estimated from reference data.
-    Only plain YAML values are accepted, never evaluated Python expressions.
-    """
+def _read_yaml_mapping(path):
     with Path(path).open(encoding="utf-8") as stream:
         values = yaml.safe_load(stream)
     if not isinstance(values, dict):
         raise ValueError(f"{path}: Configuration must be a YAML mapping")
-    values = dict(values)
+    return values
+
+
+def read_simulation_config(path=DEFAULT_CONFIG_PATH, overrides=None):
+    """Resolve repository defaults, YAML settings, and overrides in that order.
+
+    Physical lengths are micrometres and means are captured transcripts per cell.
+    A custom YAML file must supply the settings that jointly define its cell types.
+    Fully specified files can be loaded without access to the repository defaults.
+    """
+    values = _read_yaml_mapping(path)
     valid_keys = {field.name for field in fields(SimulationConfig)}
-    unknown_keys = values.keys() - valid_keys
+    unknown_keys = (values.keys() | (overrides or {}).keys()) - valid_keys
     if unknown_keys:
         raise ValueError(
             f"{path}: Unknown configuration keys: {sorted(unknown_keys, key=str)}"
         )
 
-    if overrides:
-        values.update(overrides)
-
-    for name in ("cell_types", "mean_transcripts_per_type"):
-        if name in values:
-            if not isinstance(values[name], list):
-                raise ValueError(f"{path}: {name} must be a YAML list")
-            values[name] = tuple(values[name])
-    if "domain_probabilities" in values:
-        rows = values["domain_probabilities"]
-        if not isinstance(rows, list) or any(not isinstance(row, list) for row in rows):
-            raise ValueError(f"{path}: domain_probabilities must be a list of lists")
-        values["domain_probabilities"] = tuple(tuple(row) for row in rows)
-    try:
-        config = SimulationConfig(**values)
-    except (ValueError, TypeError) as exc:
-        raise ValueError(f"{path}: {exc}") from exc
-
-    required_keys = {
-        "cell_types",
-        "domain_probabilities",
-        "mean_transcripts_per_type",
-    }
-
+    values.update(overrides or {})
+    required_keys = {"cell_types", "domain_probabilities", "mean_transcripts_per_type"}
     missing_keys = required_keys - values.keys()
     if missing_keys:
         raise ValueError(
             f"{path}: Missing required configuration keys: {sorted(missing_keys)}"
         )
 
-    return config
+    if values.keys() != valid_keys:
+        defaults_path = Path(__file__).resolve().parents[2] / DEFAULT_CONFIG_PATH
+        values = _read_yaml_mapping(defaults_path) | values
+
+    for name in ("cell_types", "mean_transcripts_per_type"):
+        if not isinstance(values[name], list):
+            raise ValueError(f"{path}: {name} must be a YAML list")
+        values[name] = tuple(values[name])
+    rows = values["domain_probabilities"]
+    if not isinstance(rows, list) or any(not isinstance(row, list) for row in rows):
+        raise ValueError(f"{path}: domain_probabilities must be a list of lists")
+    values["domain_probabilities"] = tuple(tuple(row) for row in rows)
+    try:
+        return SimulationConfig(**values)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"{path}: {exc}") from exc
