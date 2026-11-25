@@ -8,6 +8,10 @@ from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 
+import hashlib
+import platform
+import sys
+
 import numpy as np
 import pandas as pd
 
@@ -22,9 +26,10 @@ from tissue_sim.expression_programs import (
 from tissue_sim.generate_transcripts_with_coords import generate_transcripts
 from tissue_sim.make_grid_csv import make_grid
 from tissue_sim.place_cells import place_cells
-from tissue_sim.provenance import require_verified, stamp, git_commit, git_clean
+from tissue_sim.provenance import (git_clean,git_commit,read_manifest,require_verified,stamp,)
 from tissue_sim.reference import generate_reference
 from tissue_sim.validate import validate_dataset
+
 
 
 @dataclass
@@ -209,9 +214,18 @@ def run(config_path, raw_dir, out_dir, overrides=None):
         raise FileExistsError(f"Choose a new output directory: {out_dir}")
     result = simulate(config)
     metadata = stamp(config_path, config.seed, manifest_path)
-    metadata["resolved_config"] = asdict(config)
-    metadata["command_line"] = " ".join(sys.argv)
-    metadata["output_status"] = "validated: Data Contract 1.0"
+    metadata.update(
+        command=sys.argv,
+        platform=platform.platform(),
+        packages={
+            name: version(name) for name in ("tissue-sim", "numpy", "pandas")
+        },
+        config_sha256=hashlib.sha256(Path(config_path).read_bytes()).hexdigest(),
+        config_resolved=asdict(config),
+        raw_data_dir=str(raw_dir),
+        raw_data_manifest=read_manifest(manifest_path),
+        output_status="validated: Data Contract 1.0",
+    )
     write_results(result, out_dir)
     (Path(out_dir) / "run_metadata.json").write_text(
         json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
